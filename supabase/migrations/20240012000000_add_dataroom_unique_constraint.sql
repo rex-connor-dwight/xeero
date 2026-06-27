@@ -1,0 +1,3 @@
+alter table data_room_documents
+add constraint data_room_documents_profile_id_doc_type_key
+unique (profile_id, doc_type);
