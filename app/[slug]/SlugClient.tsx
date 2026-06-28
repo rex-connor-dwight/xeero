@@ -358,11 +358,11 @@ function DocModal({ doc, onClose }: { doc: DataRoomDoc; onClose: () => void }) {
 type ModalStyles = { [key: string]: React.CSSProperties };
 const modalStyles: ModalStyles = {
   overlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" },
-  modal: { backgroundColor: "#ffffff", borderRadius: "16px", width: "100%", maxWidth: "720px", maxHeight: "88vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.3)", overflow: "hidden" },
+  modal: { backgroundColor: "#ffffff", borderRadius: "16px", width: "100%", maxWidth: "720px", height: "80vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.3)", overflow: "hidden" },
   modalHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid #f0f0f0", flexShrink: 0 },
   modalTitle: { fontSize: "14px", fontWeight: "600", color: "#111111" },
   closeBtn: { fontSize: "14px", color: "#888888", background: "none", border: "none", cursor: "pointer", padding: "4px 8px" },
-  modalBody: { flex: 1, overflow: "auto", minHeight: 0 },
+  modalBody: { flex: 1, overflow: "auto", minHeight: 0, height: "100%" },
   builtContent: { padding: "24px", display: "flex", flexDirection: "column", gap: "20px" },
   builtTitle: { fontSize: "16px", fontWeight: "700", color: "#111111", margin: "0" },
   fieldRow: { borderBottom: "1px solid #f5f5f5", paddingBottom: "16px" },
