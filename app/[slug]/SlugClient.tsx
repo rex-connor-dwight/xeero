@@ -22,6 +22,7 @@ import {
   FolderOpen,
   CheckCircle,
   Clock,
+  Heart,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -71,6 +72,7 @@ type Profile = {
   validation_score: number | null;
   validation_band: string | null;
   validation_answers: any | null;
+  subaccount_code: string | null;
 };
 
 type Tab = "overview" | "founder" | "deck" | "dataroom";
@@ -407,7 +409,6 @@ function DataRoomViewer({ profileId, startupName }: { profileId: string; startup
       {activeDoc && (
         <DocModal doc={activeDoc} onClose={() => setActiveDoc(null)} />
       )}
-
       <div style={styles.drViewerWrapper}>
         <div style={styles.drViewerHeader}>
           <div style={styles.drViewerIconBox}>
@@ -420,7 +421,6 @@ function DataRoomViewer({ profileId, startupName }: { profileId: string; startup
             </p>
           </div>
         </div>
-
         {sections.map((section) => {
           const sectionDocs = docs.filter((d) => d.section === section.key);
           if (sectionDocs.length === 0) return null;
@@ -433,10 +433,7 @@ function DataRoomViewer({ profileId, startupName }: { profileId: string; startup
                     <CheckCircle size={14} color="#38a169" />
                     <span style={styles.drDocTitle}>{doc.title}</span>
                   </div>
-                  <button
-                    style={styles.drDocViewBtn}
-                    onClick={() => setActiveDoc(doc)}
-                  >
+                  <button style={styles.drDocViewBtn} onClick={() => setActiveDoc(doc)}>
                     View
                   </button>
                 </div>
@@ -444,7 +441,6 @@ function DataRoomViewer({ profileId, startupName }: { profileId: string; startup
             </div>
           );
         })}
-
         {docs.length === 0 && (
           <div style={styles.drEmptyDocs}>
             <p style={styles.drEmptyDocsText}>
@@ -488,6 +484,26 @@ export default function SlugClient({
   const [drLoading, setDrLoading] = useState(false);
   const [drDone, setDrDone] = useState(false);
   const [drError, setDrError] = useState("");
+
+  const [showSupport, setShowSupport] = useState(false);
+  const [supportName, setSupportName] = useState("");
+  const [supportEmail, setSupportEmail] = useState("");
+  const [supportAmount, setSupportAmount] = useState<number | null>(null);
+  const [supportLoading, setSupportLoading] = useState(false);
+  const [supportDone, setSupportDone] = useState(false);
+  const [supportError, setSupportError] = useState("");
+  const [scriptLoaded, setScriptLoaded] = useState(false);
+
+  useEffect(() => {
+    if (document.querySelector('script[src="https://js.paystack.co/v1/inline.js"]')) {
+      setScriptLoaded(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://js.paystack.co/v1/inline.js";
+    script.onload = () => setScriptLoaded(true);
+    document.head.appendChild(script);
+  }, []);
 
   useEffect(() => {
     fetchProfileBySlug(slug).then(async (data) => {
@@ -542,6 +558,67 @@ export default function SlugClient({
     ).catch(() => {});
     setDrDone(true);
     setDrLoading(false);
+  };
+
+  const handleSupport = async () => {
+    if (!supportName || !supportEmail || !supportAmount || !profile) return;
+    setSupportLoading(true);
+    setSupportError("");
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/initialize-support`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            profile_id: profile.id,
+            amount_usd: supportAmount,
+            tier: supportAmount === 1 ? "Believer"
+              : supportAmount === 5 ? "Early Supporter"
+              : supportAmount === 10 ? "Backing You"
+              : supportAmount === 50 ? "Champion"
+              : "Lead Believer",
+            supporter_name: supportName,
+            supporter_email: supportEmail,
+            is_public: true,
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        setSupportError(data.error || "Something went wrong.");
+        setSupportLoading(false);
+        return;
+      }
+
+      setSupportLoading(false);
+
+      const handler = (window as any).PaystackPop.setup({
+        key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
+        email: supportEmail,
+        amount: data.ngn_amount * 100,
+        ref: data.reference,
+        currency: "NGN",
+        callback: () => {
+          setSupportDone(true);
+          setShowSupport(false);
+        },
+        onClose: () => {
+          setSupportLoading(false);
+        },
+      });
+      handler.openIframe();
+
+    } catch {
+      setSupportError("Something went wrong. Please try again.");
+      setSupportLoading(false);
+    }
   };
 
   if (loading) return <div style={styles.centeredPage}><div style={styles.loadingDot} /></div>;
@@ -948,6 +1025,104 @@ export default function SlugClient({
           {" "}· Build your startup profile for free
         </p>
       </div>
+
+      {/* ── Floating Support Button ── */}
+      {profile.subaccount_code && (
+        <>
+          <button style={styles.fab} onClick={() => setShowSupport(true)}>
+            <Heart size={16} color="#ffffff" />
+            <span style={styles.fabText}>Support this founder</span>
+          </button>
+
+          {showSupport && (
+            <div style={styles.supportOverlay} onClick={() => setShowSupport(false)}>
+              <div style={styles.supportModal} onClick={(e) => e.stopPropagation()}>
+
+                <div style={styles.supportModalHeader}>
+                  <div style={styles.supportModalTitle}>
+                    <Heart size={16} color="#38a169" />
+                    <span>Support this founder</span>
+                  </div>
+                  <button style={styles.supportCloseBtn} onClick={() => setShowSupport(false)}>✕</button>
+                </div>
+
+                {supportDone ? (
+                  <div style={styles.supportSuccess}>
+                    <CheckCircle size={28} color="#38a169" />
+                    <p style={styles.supportSuccessTitle}>Thank you for believing.</p>
+                    <p style={styles.supportSuccessText}>
+                      The founder will be in touch about early access.
+                    </p>
+                  </div>
+                ) : (
+                  <div style={styles.supportForm}>
+                    <p style={styles.supportIntro}>
+                      Support <strong>{profile.startup_name}</strong> and get early access to what they're building.
+                    </p>
+
+                    <p style={styles.supportLabel}>Choose an amount</p>
+                    <div style={styles.supportTiers}>
+                      {[
+                        { amount: 1, label: "Believer" },
+                        { amount: 5, label: "Early Supporter" },
+                        { amount: 10, label: "Backing You" },
+                        { amount: 50, label: "Champion" },
+                        { amount: 100, label: "Lead Believer" },
+                      ].map((tier) => (
+                        <button
+                          key={tier.amount}
+                          style={{
+                            ...styles.tierBtn,
+                            ...(supportAmount === tier.amount ? styles.tierBtnActive : {}),
+                          }}
+                          onClick={() => setSupportAmount(tier.amount)}
+                        >
+                          <span style={styles.tierAmount}>${tier.amount}</span>
+                          <span style={styles.tierLabel}>{tier.label}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <p style={styles.supportLabel}>Your details</p>
+                    <input
+                      style={styles.supportInput}
+                      placeholder="Your name"
+                      value={supportName}
+                      onChange={(e) => setSupportName(e.target.value)}
+                    />
+                    <input
+                      style={styles.supportInput}
+                      placeholder="Your email"
+                      type="email"
+                      value={supportEmail}
+                      onChange={(e) => setSupportEmail(e.target.value)}
+                    />
+
+                    {supportError && <p style={styles.supportError}>{supportError}</p>}
+
+                    <button
+                      style={{
+                        ...styles.supportPayBtn,
+                        opacity: supportName && supportEmail && supportAmount && !supportLoading ? 1 : 0.5,
+                      }}
+                      onClick={handleSupport}
+                      disabled={!supportName || !supportEmail || !supportAmount || supportLoading}
+                    >
+                      <Heart size={14} color="#ffffff" />
+                      {supportLoading ? "Processing..." : `Support with $${supportAmount || "..."}`}
+                    </button>
+
+                    <p style={styles.supportDisclaimer}>
+                      Secure payment via Paystack. You get early access forever.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
     </div>
   );
 }
@@ -1003,7 +1178,7 @@ const styles: Styles = {
   tab: { padding: "7px 16px", fontSize: "13px", fontWeight: "500", color: "#888888", backgroundColor: "#ffffff", border: "1px solid #eeeeee", borderRadius: "99px", cursor: "pointer", whiteSpace: "nowrap", display: "flex", alignItems: "center", transition: "all 0.15s ease" },
   tabActive: { color: "#ffffff", backgroundColor: "#111111", border: "1px solid #111111", fontWeight: "600" },
   tabContent: { maxWidth: "800px", margin: "0 auto", padding: "8px 24px 40px 24px" },
-  grid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "14px" },
+  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "14px" },
   infoCard: { backgroundColor: "#ffffff", borderRadius: "14px", padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", border: "1px solid #f0f0f0" },
   infoCardFull: { gridColumn: "1 / -1" },
   infoCardEmpty: { backgroundColor: "#fafafa", border: "1px dashed #e5e5e5", boxShadow: "none" },
@@ -1012,7 +1187,7 @@ const styles: Styles = {
   infoCardCapsule: { fontSize: "11px", fontWeight: "600", color: "#999999", textTransform: "uppercase", letterSpacing: "0.07em", backgroundColor: "#f5f5f5", padding: "3px 10px", borderRadius: "99px" },
   infoCardValue: { fontSize: "14px", color: "#333333", lineHeight: "1.7", margin: "0" },
   infoCardValueEmpty: { color: "#cccccc", fontStyle: "italic", fontSize: "13px" },
-  fundraisingRow: { display: "flex", gap: "40px" },
+  fundraisingRow: { display: "flex", justifyContent: "space-between", alignItems: "flex-end" },
   fundraisingItem: { display: "flex", flexDirection: "column", gap: "4px" },
   fundraisingLabel: { fontSize: "11px", color: "#999999", fontWeight: "500", margin: "0", textTransform: "uppercase", letterSpacing: "0.06em" },
   fundraisingValue: { fontSize: "20px", fontWeight: "700", color: "#111111", margin: "0" },
@@ -1083,5 +1258,27 @@ const styles: Styles = {
   drSuccessText: { fontSize: "13px", color: "#38a169", fontWeight: "500", margin: "0" },
   footer: { textAlign: "center", padding: "32px 24px", borderTop: "1px solid #f0f0f0", marginTop: "16px" },
   footerText: { fontSize: "12px", color: "#cccccc", margin: "0" },
-  footerLink: { color: "#111111", fontWeight: "600", textDecoration: "none" }, 
+  footerLink: { color: "#111111", fontWeight: "600", textDecoration: "none" },
+  fab: { position: "fixed", bottom: "80px", right: "24px", zIndex: 200, display: "flex", alignItems: "center", gap: "8px", padding: "12px 20px", backgroundColor: "#38a169", border: "none", borderRadius: "99px", cursor: "pointer", boxShadow: "0 4px 20px rgba(56,161,105,0.4)" },
+  fabText: { fontSize: "13px", fontWeight: "600", color: "#ffffff" },
+  supportOverlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center" },
+  supportModal: { backgroundColor: "#ffffff", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: "480px", padding: "24px", maxHeight: "90vh", overflowY: "auto" },
+  supportModalHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" },
+  supportModalTitle: { display: "flex", alignItems: "center", gap: "8px", fontSize: "15px", fontWeight: "700", color: "#111111" },
+  supportCloseBtn: { fontSize: "14px", color: "#888888", background: "none", border: "none", cursor: "pointer", padding: "4px 8px" },
+  supportSuccess: { display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", padding: "24px 0", textAlign: "center" },
+  supportSuccessTitle: { fontSize: "18px", fontWeight: "700", color: "#111111", margin: "0" },
+  supportSuccessText: { fontSize: "14px", color: "#666666", margin: "0", lineHeight: "1.6" },
+  supportForm: { display: "flex", flexDirection: "column", gap: "12px" },
+  supportIntro: { fontSize: "14px", color: "#666666", lineHeight: "1.6", margin: "0" },
+  supportLabel: { fontSize: "12px", fontWeight: "600", color: "#aaaaaa", textTransform: "uppercase", letterSpacing: "0.07em", margin: "0" },
+  supportTiers: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" },
+  tierBtn: { display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", padding: "12px 8px", backgroundColor: "#f5f5f5", border: "1px solid #eeeeee", borderRadius: "10px", cursor: "pointer" },
+  tierBtnActive: { backgroundColor: "#f0fff4", border: "1px solid #38a169" },
+  tierAmount: { fontSize: "16px", fontWeight: "700", color: "#111111" },
+  tierLabel: { fontSize: "10px", color: "#888888" },
+  supportInput: { width: "100%", padding: "11px 14px", fontSize: "13px", border: "1px solid #e5e5e5", borderRadius: "8px", outline: "none", backgroundColor: "#fafafa", boxSizing: "border-box" },
+  supportError: { fontSize: "12px", color: "#e53e3e", margin: "0" },
+  supportPayBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", width: "100%", padding: "14px", fontSize: "14px", fontWeight: "600", color: "#ffffff", backgroundColor: "#38a169", border: "none", borderRadius: "10px", cursor: "pointer", transition: "opacity 0.2s ease" },
+  supportDisclaimer: { fontSize: "11px", color: "#bbbbbb", textAlign: "center", margin: "0" },
 };

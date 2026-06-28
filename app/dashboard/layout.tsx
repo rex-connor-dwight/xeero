@@ -9,11 +9,12 @@ import {
   Users,
   Bell,
   Settings,
-  LogOut,
   Plus,
   ChevronUp,
   Lightbulb,
   FolderLock,
+  Heart,
+  Rocket,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -24,7 +25,7 @@ type NavItem = {
   path: string;
 };
 
-// ── Logic ──────────────────────────────────────────────────────────────────
+// ── Nav Items ──────────────────────────────────────────────────────────────
 
 const navItems: NavItem[] = [
   { label: "Dashboard", icon: <LayoutDashboard size={18} />, path: "/dashboard" },
@@ -33,6 +34,8 @@ const navItems: NavItem[] = [
   { label: "Validate", icon: <Lightbulb size={18} />, path: "/dashboard/validate" },
   { label: "Data Room", icon: <FolderLock size={18} />, path: "/dashboard/dataroom" },
   { label: "Notifications", icon: <Bell size={18} />, path: "/dashboard/notifications" },
+  { label: "Supporters", icon: <Heart size={18} />, path: "/dashboard/supporters" },
+  { label: "Funding", icon: <Rocket size={18} />, path: "/dashboard/funding" },
 ];
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -160,7 +163,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         {/* ── Main Content ── */}
-        <div style={styles.main} className="mobile-content-offset">{children}</div>
+        <div style={styles.main} className="mobile-content-offset">
+          {children}
+        </div>
 
       </div>
 
@@ -228,283 +233,47 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
 // ── Styles ─────────────────────────────────────────────────────────────────
 
-type Styles = {
-  [key: string]: React.CSSProperties;
-};
+type Styles = { [key: string]: React.CSSProperties };
 
 const styles: Styles = {
-  root: {
-    minHeight: "100vh",
-    backgroundColor: "#f5f5f5",
-    display: "flex",
-    flexDirection: "column",
-  },
-  loadingPage: {
-    minHeight: "100vh",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#f5f5f5",
-  },
-  loadingDot: {
-    width: "8px",
-    height: "8px",
-    borderRadius: "50%",
-    backgroundColor: "#cccccc",
-  },
-  topBar: {
-    backgroundColor: "#111111",
-    padding: "12px 24px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    position: "sticky",
-    top: 0,
-    zIndex: 200,
-    flexShrink: 0,
-  },
-  topBarLeft: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-  },
-  topBarLogo: {
-    width: "26px",
-    height: "26px",
-    borderRadius: "50%",
-    backgroundColor: "rgba(255,255,255,0.15)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  topBarLogoInner: {
-    width: "13px",
-    height: "13px",
-    borderRadius: "50%",
-    backgroundColor: "#ffffff",
-  },
-  topBarBrand: {
-    fontSize: "16px",
-    fontWeight: "700",
-    color: "#ffffff",
-  },
-  topBarRight: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-  },
-  topBarBtn: {
-    display: "flex",
-    alignItems: "center",
-    gap: "6px",
-    padding: "7px 14px",
-    fontSize: "12px",
-    fontWeight: "500",
-    color: "rgba(255,255,255,0.8)",
-    backgroundColor: "rgba(255,255,255,0.1)",
-    border: "1px solid rgba(255,255,255,0.15)",
-    borderRadius: "8px",
-    cursor: "pointer",
-  },
-  topBarIconBtn: {
-    width: "34px",
-    height: "34px",
-    borderRadius: "8px",
-    backgroundColor: "rgba(255,255,255,0.08)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-  },
-  topBarAvatar: {
-    width: "34px",
-    height: "34px",
-    borderRadius: "50%",
-    backgroundColor: "rgba(255,255,255,0.2)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  topBarAvatarText: {
-    fontSize: "13px",
-    fontWeight: "700",
-    color: "#ffffff",
-  },
-  body: {
-    display: "flex",
-    flex: 1,
-  },
-  sidebar: {
-    width: "220px",
-    backgroundColor: "#ffffff",
-    borderRight: "1px solid #f0f0f0",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "space-between",
-    padding: "20px 12px",
-    position: "sticky",
-    top: "50px",
-    height: "calc(100vh - 50px)",
-    flexShrink: 0,
-  },
-  sidebarTop: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "8px",
-  },
-  sidebarStartup: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    padding: "8px 12px",
-    marginBottom: "8px",
-  },
-  sidebarStartupDot: {
-    width: "8px",
-    height: "8px",
-    borderRadius: "50%",
-    backgroundColor: "#111111",
-    flexShrink: 0,
-  },
-  sidebarStartupName: {
-    fontSize: "13px",
-    fontWeight: "600",
-    color: "#111111",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  },
-  nav: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "2px",
-  },
-  navItem: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    padding: "9px 12px",
-    borderRadius: "8px",
-    backgroundColor: "transparent",
-    border: "none",
-    cursor: "pointer",
-    width: "100%",
-    textAlign: "left",
-    transition: "background-color 0.15s ease",
-  },
-  navItemActive: {
-    backgroundColor: "#f5f5f5",
-  },
-  navIcon: {
-    display: "flex",
-    alignItems: "center",
-    flexShrink: 0,
-  },
-  navLabel: {
-    fontSize: "13px",
-    color: "#888888",
-  },
-  sidebarBottom: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "2px",
-    borderTop: "1px solid #f5f5f5",
-    paddingTop: "12px",
-  },
-  main: {
-    flex: 1,
-    minWidth: 0,
-    overflowY: "auto",
-  },
-  island: {
-    position: "fixed",
-    top: "62px",
-    left: "50%",
-    transform: "translateX(-50%)",
-    zIndex: 150,
-    pointerEvents: "none",
-  },
-  islandPill: {
-    backgroundColor: "#111111",
-    borderRadius: "99px",
-    padding: "10px 18px",
-    boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
-    minWidth: "160px",
-    transition: "all 0.2s ease",
-    pointerEvents: "auto", // ← add this
-  },
-  islandPillOpen: {
-    borderRadius: "20px",
-    padding: "16px",
-    minWidth: "280px",
-  },
-  islandCollapsed: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    cursor: "pointer",
-    justifyContent: "center",
-  },
-  islandDot: {
-    width: "6px",
-    height: "6px",
-    borderRadius: "50%",
-    backgroundColor: "#ffffff",
-  },
-  islandLabel: {
-    fontSize: "13px",
-    fontWeight: "600",
-    color: "#ffffff",
-  },
-  islandExpanded: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "12px",
-  },
-  islandExpandedHeader: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  islandExpandedTitle: {
-    fontSize: "11px",
-    fontWeight: "600",
-    color: "rgba(255,255,255,0.4)",
-    textTransform: "uppercase",
-    letterSpacing: "0.08em",
-  },
-  islandCloseBtn: {
-    fontSize: "12px",
-    color: "rgba(255,255,255,0.4)",
-    backgroundColor: "transparent",
-    border: "none",
-    cursor: "pointer",
-    padding: "2px 6px",
-  },
-  islandGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: "8px",
-  },
-  islandTile: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "6px",
-    padding: "12px 8px",
-    borderRadius: "12px",
-    backgroundColor: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    cursor: "pointer",
-  },
-  islandTileActive: {
-    backgroundColor: "rgba(255,255,255,0.15)",
-    border: "1px solid rgba(255,255,255,0.2)",
-  },
-  islandTileLabel: {
-    fontSize: "10px",
-    fontWeight: "500",
-    textAlign: "center",
-  },
+  root: { minHeight: "100vh", backgroundColor: "#f5f5f5", display: "flex", flexDirection: "column" },
+  loadingPage: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#f5f5f5" },
+  loadingDot: { width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#cccccc" },
+  topBar: { backgroundColor: "#111111", padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 200, flexShrink: 0 },
+  topBarLeft: { display: "flex", alignItems: "center", gap: "10px" },
+  topBarLogo: { width: "26px", height: "26px", borderRadius: "50%", backgroundColor: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center" },
+  topBarLogoInner: { width: "13px", height: "13px", borderRadius: "50%", backgroundColor: "#ffffff" },
+  topBarBrand: { fontSize: "16px", fontWeight: "700", color: "#ffffff" },
+  topBarRight: { display: "flex", alignItems: "center", gap: "10px" },
+  topBarBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", fontSize: "12px", fontWeight: "500", color: "rgba(255,255,255,0.8)", backgroundColor: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "8px", cursor: "pointer" },
+  topBarIconBtn: { width: "34px", height: "34px", borderRadius: "8px", backgroundColor: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
+  topBarAvatar: { width: "34px", height: "34px", borderRadius: "50%", backgroundColor: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center" },
+  topBarAvatarText: { fontSize: "13px", fontWeight: "700", color: "#ffffff" },
+  body: { display: "flex", flex: 1 },
+  sidebar: { width: "220px", backgroundColor: "#ffffff", borderRight: "1px solid #f0f0f0", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "20px 12px", position: "sticky", top: "50px", height: "calc(100vh - 50px)", flexShrink: 0 },
+  sidebarTop: { display: "flex", flexDirection: "column", gap: "8px" },
+  sidebarStartup: { display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px", marginBottom: "8px" },
+  sidebarStartupDot: { width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#111111", flexShrink: 0 },
+  sidebarStartupName: { fontSize: "13px", fontWeight: "600", color: "#111111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  nav: { display: "flex", flexDirection: "column", gap: "2px" },
+  navItem: { display: "flex", alignItems: "center", gap: "10px", padding: "9px 12px", borderRadius: "8px", backgroundColor: "transparent", border: "none", cursor: "pointer", width: "100%", textAlign: "left", transition: "background-color 0.15s ease" },
+  navItemActive: { backgroundColor: "#f5f5f5" },
+  navIcon: { display: "flex", alignItems: "center", flexShrink: 0 },
+  navLabel: { fontSize: "13px", color: "#888888" },
+  sidebarBottom: { display: "flex", flexDirection: "column", gap: "2px", borderTop: "1px solid #f5f5f5", paddingTop: "12px" },
+  main: { flex: 1, minWidth: 0, overflowY: "auto" },
+  island: { position: "fixed", top: "62px", left: "50%", transform: "translateX(-50%)", zIndex: 150, pointerEvents: "none" },
+  islandPill: { backgroundColor: "#111111", borderRadius: "99px", padding: "10px 18px", boxShadow: "0 8px 32px rgba(0,0,0,0.3)", minWidth: "160px", transition: "all 0.2s ease", pointerEvents: "auto" },
+  islandPillOpen: { borderRadius: "20px", padding: "16px", minWidth: "300px" },
+  islandCollapsed: { display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", justifyContent: "center" },
+  islandDot: { width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#ffffff" },
+  islandLabel: { fontSize: "13px", fontWeight: "600", color: "#ffffff" },
+  islandExpanded: { display: "flex", flexDirection: "column", gap: "12px" },
+  islandExpandedHeader: { display: "flex", alignItems: "center", justifyContent: "space-between" },
+  islandExpandedTitle: { fontSize: "11px", fontWeight: "600", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em" },
+  islandCloseBtn: { fontSize: "12px", color: "rgba(255,255,255,0.4)", backgroundColor: "transparent", border: "none", cursor: "pointer", padding: "2px 6px" },
+  islandGrid: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" },
+  islandTile: { display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", padding: "12px 8px", borderRadius: "12px", backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" },
+  islandTileActive: { backgroundColor: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)" },
+  islandTileLabel: { fontSize: "10px", fontWeight: "500", textAlign: "center" },
 };
