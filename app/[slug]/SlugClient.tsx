@@ -1083,5 +1083,5 @@ const styles: Styles = {
   drSuccessText: { fontSize: "13px", color: "#38a169", fontWeight: "500", margin: "0" },
   footer: { textAlign: "center", padding: "32px 24px", borderTop: "1px solid #f0f0f0", marginTop: "16px" },
   footerText: { fontSize: "12px", color: "#cccccc", margin: "0" },
-  footerLink: { color: "#111111", fontWeight: "600", textDecoration: "none" },
+  footerLink: { color: "#111111", fontWeight: "600", textDecoration: "none" }, 
 };
