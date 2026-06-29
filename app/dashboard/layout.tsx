@@ -15,6 +15,7 @@ import {
   FolderLock,
   Heart,
   Rocket,
+  LogOut,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -45,6 +46,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const { user, profile, loading, signOut } = useXeero();
   const [islandOpen, setIslandOpen] = useState(false);
+  const [avatarOpen, setAvatarOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -102,10 +104,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           >
             <Bell size={16} color="rgba(255,255,255,0.7)" />
           </button>
-          <div style={styles.topBarAvatar}>
-            <span style={styles.topBarAvatarText}>
-              {profile?.founder_name?.[0]?.toUpperCase() || "F"}
-            </span>
+          <div style={{ position: "relative" }}>
+            <button
+              style={styles.topBarAvatar}
+              onClick={() => setAvatarOpen(!avatarOpen)}
+            >
+              <span style={styles.topBarAvatarText}>
+                {profile?.founder_name?.[0]?.toUpperCase() || "F"}
+              </span>
+            </button>
+            {avatarOpen && (
+              <div style={styles.avatarDropdown}>
+                <button
+                  style={styles.avatarDropdownItem}
+                  onClick={() => { router.push("/dashboard/settings"); setAvatarOpen(false); }}
+                >
+                  <Settings size={14} color="#666666" />
+                  Settings
+                </button>
+                <div style={styles.avatarDropdownDivider} />
+                <button
+                  style={{ ...styles.avatarDropdownItem, color: "#e53e3e" }}
+                  onClick={handleSignOut}
+                >
+                  <LogOut size={14} color="#e53e3e" />
+                  Sign Out
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -149,7 +175,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </nav>
           </div>
 
-          <div style={styles.sidebarBottom}>
+          {/* <div style={styles.sidebarBottom}>
             <button
               style={styles.navItem}
               onClick={() => router.push("/dashboard/settings")}
@@ -159,7 +185,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </span>
               <span style={styles.navLabel}>Settings</span>
             </button>
-          </div>
+          </div> */}
         </div>
 
         {/* ── Main Content ── */}
@@ -247,7 +273,7 @@ const styles: Styles = {
   topBarRight: { display: "flex", alignItems: "center", gap: "10px" },
   topBarBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", fontSize: "12px", fontWeight: "500", color: "rgba(255,255,255,0.8)", backgroundColor: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "8px", cursor: "pointer" },
   topBarIconBtn: { width: "34px", height: "34px", borderRadius: "8px", backgroundColor: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
-  topBarAvatar: { width: "34px", height: "34px", borderRadius: "50%", backgroundColor: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center" },
+  topBarAvatar: { width: "34px", height: "34px", borderRadius: "50%", backgroundColor: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", border: "none" },
   topBarAvatarText: { fontSize: "13px", fontWeight: "700", color: "#ffffff" },
   body: { display: "flex", flex: 1 },
   sidebar: { width: "220px", backgroundColor: "#ffffff", borderRight: "1px solid #f0f0f0", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "20px 12px", position: "sticky", top: "50px", height: "calc(100vh - 50px)", flexShrink: 0 },
@@ -276,4 +302,7 @@ const styles: Styles = {
   islandTile: { display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", padding: "12px 8px", borderRadius: "12px", backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" },
   islandTileActive: { backgroundColor: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)" },
   islandTileLabel: { fontSize: "10px", fontWeight: "500", textAlign: "center" },
+  avatarDropdown: { position: "absolute", top: "calc(100% + 8px)", right: 0, backgroundColor: "#ffffff", borderRadius: "12px", padding: "6px", boxShadow: "0 8px 32px rgba(0,0,0,0.15)", border: "1px solid #f0f0f0", minWidth: "160px", zIndex: 300 },
+  avatarDropdownItem: { display: "flex", alignItems: "center", gap: "8px", width: "100%", padding: "9px 12px", fontSize: "13px", fontWeight: "500", color: "#333333", backgroundColor: "transparent", border: "none", borderRadius: "8px", cursor: "pointer", textAlign: "left" },
+  avatarDropdownDivider: { height: "1px", backgroundColor: "#f5f5f5", margin: "4px 0" },
 };
