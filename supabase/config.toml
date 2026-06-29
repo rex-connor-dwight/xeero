@@ -108,3 +108,47 @@ entrypoint = "./functions/webhook-router/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/webhook-router/*.html" ]
+
+[functions.crm-users]
+enabled = true
+verify_jwt = true
+import_map = "./functions/crm-users/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/crm-users/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/crm-users/*.html" ]
+
+[functions.crm-finance]
+enabled = true
+verify_jwt = true
+import_map = "./functions/crm-finance/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/crm-finance/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/crm-finance/*.html" ]
+
+[functions.crm-toggle-live]
+enabled = true
+verify_jwt = true
+import_map = "./functions/crm-toggle-live/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/crm-toggle-live/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/crm-toggle-live/*.html" ]
+
+[functions.backfill-payments]
+enabled = true
+verify_jwt = true
+import_map = "./functions/backfill-payments/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/backfill-payments/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/backfill-payments/*.html" ]
