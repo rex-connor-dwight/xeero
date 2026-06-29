@@ -27,7 +27,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Fetch the application
     const { data: application, error: appError } = await supabaseAdmin
       .from("support_applications")
       .select("*, profiles(startup_name)")
@@ -41,7 +40,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Create Paystack subaccount
     const paystackRes = await fetch("https://api.paystack.co/subaccount", {
       method: "POST",
       headers: {
@@ -52,7 +50,8 @@ Deno.serve(async (req: Request) => {
         business_name: application.profiles.startup_name,
         bank_code: application.bank_code,
         account_number: application.account_number,
-        percentage_charge: 8, // Xeero takes 8%
+        percentage_charge: 8,
+        settlement_schedule: "auto",
       }),
     });
 
@@ -68,7 +67,6 @@ Deno.serve(async (req: Request) => {
 
     const subaccount_code = paystackData.data.subaccount_code;
 
-    // Update application — approved + subaccount_code
     await supabaseAdmin
       .from("support_applications")
       .update({
@@ -78,7 +76,6 @@ Deno.serve(async (req: Request) => {
       })
       .eq("id", application_id);
 
-    // Also save subaccount_code to profile for easy lookup
     await supabaseAdmin
       .from("profiles")
       .update({ subaccount_code })

@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 
 const ADMIN_EMAILS = ["connor@xeero.me"];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   if (!request.nextUrl.pathname.startsWith("/crm")) {
     return NextResponse.next();
   }
@@ -38,5 +38,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/crm", "/crm/:path*"],
+  paths: ["/crm", "/crm/:path*"],
 };

@@ -8,8 +8,6 @@ import {
   Heart,
   Download,
   Users,
-  DollarSign,
-  TrendingUp,
   Lock,
 } from "lucide-react";
 
@@ -63,7 +61,6 @@ export default function SupportersPage() {
   useEffect(() => {
     if (!profile) return;
 
-    // Fetch support application status
     supabase
       .from("support_applications")
       .select("*")
@@ -71,7 +68,6 @@ export default function SupportersPage() {
       .single()
       .then(({ data }) => setApplication(data));
 
-    // Fetch supporters
     supabase
       .from("supporters")
       .select("*")
@@ -91,7 +87,6 @@ export default function SupportersPage() {
     );
   }
 
-  // Not approved yet
   if (!application || application.status !== "approved") {
     return (
       <div style={styles.page}>
@@ -118,84 +113,75 @@ export default function SupportersPage() {
     );
   }
 
-  const totalRaised = supporters.reduce((sum, s) => sum + s.amount, 0);
-  const uniqueSupporters = supporters.length;
-  const avgAmount = uniqueSupporters > 0 ? (totalRaised / uniqueSupporters).toFixed(0) : 0;
+  const totalRaised = supporters.reduce((sum, s) => sum + Number(s.amount), 0);
+  const supporterCount = supporters.length;
 
   return (
     <div style={styles.page}>
 
-      {/* Header */}
-      <div style={styles.header}>
-        <div style={styles.headerLeft}>
-          <div style={styles.headerIcon}>
-            <Heart size={18} color="#111111" />
-          </div>
+      {/* ── Dark Hero Card ── */}
+      <div style={styles.heroCard}>
+        <div style={styles.heroTop}>
           <div>
-            <h1 style={styles.headerTitle}>Supporters</h1>
-            <p style={styles.headerSub}>
-              People who believe in what you're building
+            <p style={styles.heroLabel}>Total raised</p>
+            <p style={styles.heroAmount}>
+              ${totalRaised % 1 === 0 ? totalRaised.toFixed(0) : totalRaised.toFixed(2)}
             </p>
+            <p style={styles.heroSub}>from community support</p>
+          </div>
+          <div style={styles.settleBadge}>
+            <span style={styles.settleDot} />
+            <span style={styles.settleBadgeText}>Auto-settles T+1</span>
           </div>
         </div>
-        {supporters.length > 0 && (
-          <button
-            style={styles.exportBtn}
-            onClick={() => exportCSV(supporters)}
-          >
-            <Download size={13} />
-            Export CSV
-          </button>
-        )}
-      </div>
-
-      {/* Stats */}
-      <div style={styles.statsRow}>
-        <div style={styles.statCard}>
-          <div style={styles.statIcon}>
-            <DollarSign size={16} color="#111111" />
+        <div style={styles.heroDivider} />
+        <div style={styles.heroBottom}>
+          <div style={styles.heroStat}>
+            <Users size={14} color="rgba(255,255,255,0.4)" />
+            <span style={styles.heroStatText}>
+              {supporterCount} {supporterCount === 1 ? "supporter" : "supporters"}
+            </span>
           </div>
-          <p style={styles.statValue}>${totalRaised}</p>
-          <p style={styles.statLabel}>Total raised</p>
-        </div>
-        <div style={styles.statCard}>
-          <div style={styles.statIcon}>
-            <Users size={16} color="#111111" />
+          <div style={styles.heroStat}>
+            <Heart size={14} color="rgba(255,255,255,0.4)" />
+            <span style={styles.heroStatText}>{profile?.startup_name}</span>
           </div>
-          <p style={styles.statValue}>{uniqueSupporters}</p>
-          <p style={styles.statLabel}>Supporters</p>
-        </div>
-        <div style={styles.statCard}>
-          <div style={styles.statIcon}>
-            <TrendingUp size={16} color="#111111" />
-          </div>
-          <p style={styles.statValue}>${avgAmount}</p>
-          <p style={styles.statLabel}>Avg. support</p>
         </div>
       </div>
 
-      {/* Supporters list */}
-      {supporters.length === 0 ? (
-        <div style={styles.emptyCard}>
-          <div style={styles.emptyIcon}>
-            <Heart size={24} color="#cccccc" />
-          </div>
-          <h3 style={styles.emptyTitle}>No supporters yet</h3>
-          <p style={styles.emptyText}>
-            Share your profile link and let people know they can support what you're building.
+      {/* ── Supporters List ── */}
+      <div style={styles.listSection}>
+        <div style={styles.listHeader}>
+          <p style={styles.sectionLabel}>
+            {supporterCount > 0
+              ? `${supporterCount} supporter${supporterCount === 1 ? "" : "s"}`
+              : "No supporters yet"}
           </p>
-          <button
-            style={styles.emptyBtn}
-            onClick={() => {
-              navigator.clipboard.writeText(`https://xeero.me/${profile?.slug}`);
-            }}
-          >
-            Copy Profile Link
-          </button>
+          {supporters.length > 0 && (
+            <button style={styles.exportBtn} onClick={() => exportCSV(supporters)}>
+              <Download size={12} />
+              Export
+            </button>
+          )}
         </div>
-      ) : (
-        <div style={styles.listWrapper}>
-          <p style={styles.sectionLabel}>All Supporters</p>
+
+        {supporters.length === 0 ? (
+          <div style={styles.emptyCard}>
+            <div style={styles.emptyIcon}>
+              <Heart size={24} color="#cccccc" />
+            </div>
+            <h3 style={styles.emptyTitle}>No supporters yet</h3>
+            <p style={styles.emptyText}>
+              Share your profile link and let people know they can support what you're building.
+            </p>
+            <button
+              style={styles.emptyBtn}
+              onClick={() => navigator.clipboard.writeText(`https://xeero.me/${profile?.slug}`)}
+            >
+              Copy Profile Link
+            </button>
+          </div>
+        ) : (
           <div style={styles.list}>
             {supporters.map((s) => (
               <div key={s.id} style={styles.supporterRow}>
@@ -209,7 +195,7 @@ export default function SupportersPage() {
                     <div style={styles.supporterNameRow}>
                       <p style={styles.supporterName}>{s.supporter_name}</p>
                       {!s.is_public && (
-                        <span style={styles.privateBadge}>Anonymous</span>
+                        <span style={styles.privateBadge}>Private</span>
                       )}
                     </div>
                     <p style={styles.supporterEmail}>{s.supporter_email}</p>
@@ -219,13 +205,24 @@ export default function SupportersPage() {
                   </div>
                 </div>
                 <div style={styles.supporterRight}>
-                  <p style={styles.supporterAmount}>${s.amount}</p>
+                  <p style={styles.supporterAmount}>
+                    ${Number(s.amount) % 1 === 0
+                      ? Number(s.amount).toFixed(0)
+                      : Number(s.amount).toFixed(2)}
+                  </p>
                 </div>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
+
+      {/* ── Settlement Note ── */}
+      <div style={styles.settleNote}>
+        <p style={styles.settleNoteText}>
+          Payments settle automatically to your bank account the next business day via Paystack. Xeero retains 8% per transaction.
+        </p>
+      </div>
 
     </div>
   );
@@ -237,19 +234,22 @@ const styles: Styles = {
   page: { padding: "24px", maxWidth: "680px", margin: "0 auto" },
   loadingPage: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" },
   loadingDot: { width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#cccccc" },
-  header: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px", flexWrap: "wrap", gap: "12px" },
-  headerLeft: { display: "flex", alignItems: "center", gap: "14px" },
-  headerIcon: { width: "44px", height: "44px", borderRadius: "12px", backgroundColor: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
-  headerTitle: { fontSize: "20px", fontWeight: "700", color: "#111111", margin: "0 0 2px 0" },
-  headerSub: { fontSize: "13px", color: "#888888", margin: "0" },
-  exportBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", fontSize: "12px", fontWeight: "500", color: "#111111", backgroundColor: "#ffffff", border: "1px solid #e5e5e5", borderRadius: "8px", cursor: "pointer" },
-  statsRow: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "20px" },
-  statCard: { backgroundColor: "#ffffff", borderRadius: "14px", padding: "20px", border: "1px solid #f0f0f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", gap: "8px" },
-  statIcon: { width: "36px", height: "36px", borderRadius: "10px", backgroundColor: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center" },
-  statValue: { fontSize: "24px", fontWeight: "700", color: "#111111", margin: "0" },
-  statLabel: { fontSize: "12px", color: "#aaaaaa", margin: "0" },
-  sectionLabel: { fontSize: "11px", fontWeight: "600", color: "#aaaaaa", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px" },
-  listWrapper: { display: "flex", flexDirection: "column" },
+  heroCard: { background: "linear-gradient(135deg, #111111 0%, #1a1a2e 50%, #16213e 100%)", borderRadius: "20px", padding: "28px", marginBottom: "20px", boxShadow: "0 8px 32px rgba(0,0,0,0.2)" },
+  heroTop: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "20px" },
+  heroLabel: { fontSize: "12px", fontWeight: "500", color: "rgba(255,255,255,0.4)", margin: "0 0 6px 0", textTransform: "uppercase", letterSpacing: "0.08em" },
+  heroAmount: { fontSize: "40px", fontWeight: "700", color: "#ffffff", margin: "0 0 4px 0", letterSpacing: "-1px" },
+  heroSub: { fontSize: "12px", color: "rgba(255,255,255,0.3)", margin: "0" },
+  settleBadge: { display: "flex", alignItems: "center", gap: "6px", padding: "6px 12px", backgroundColor: "rgba(255,255,255,0.08)", borderRadius: "99px", border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 },
+  settleDot: { width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#38a169", flexShrink: 0 },
+  settleBadgeText: { fontSize: "11px", fontWeight: "500", color: "rgba(255,255,255,0.5)" },
+  heroDivider: { height: "1px", backgroundColor: "rgba(255,255,255,0.08)", marginBottom: "16px" },
+  heroBottom: { display: "flex", alignItems: "center", gap: "20px" },
+  heroStat: { display: "flex", alignItems: "center", gap: "6px" },
+  heroStatText: { fontSize: "12px", color: "rgba(255,255,255,0.4)", fontWeight: "500" },
+  listSection: { display: "flex", flexDirection: "column", gap: "12px" },
+  listHeader: { display: "flex", alignItems: "center", justifyContent: "space-between" },
+  sectionLabel: { fontSize: "11px", fontWeight: "600", color: "#aaaaaa", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0" },
+  exportBtn: { display: "flex", alignItems: "center", gap: "5px", padding: "6px 12px", fontSize: "11px", fontWeight: "500", color: "#111111", backgroundColor: "#ffffff", border: "1px solid #e5e5e5", borderRadius: "6px", cursor: "pointer" },
   list: { display: "flex", flexDirection: "column", gap: "8px" },
   supporterRow: { backgroundColor: "#ffffff", borderRadius: "14px", padding: "16px 20px", border: "1px solid #f0f0f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" },
   supporterLeft: { display: "flex", alignItems: "center", gap: "12px", flex: 1 },
@@ -263,11 +263,13 @@ const styles: Styles = {
   supporterMeta: { fontSize: "11px", color: "#bbbbbb", margin: "0" },
   supporterRight: { flexShrink: 0 },
   supporterAmount: { fontSize: "18px", fontWeight: "700", color: "#111111", margin: "0" },
-  emptyCard: { backgroundColor: "#ffffff", borderRadius: "14px", padding: "56px 32px", border: "1px solid #f0f0f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" },
+  emptyCard: { backgroundColor: "#ffffff", borderRadius: "14px", padding: "48px 32px", border: "1px solid #f0f0f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" },
   emptyIcon: { width: "56px", height: "56px", borderRadius: "16px", backgroundColor: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "16px" },
   emptyTitle: { fontSize: "16px", fontWeight: "700", color: "#111111", margin: "0 0 8px 0" },
   emptyText: { fontSize: "13px", color: "#888888", lineHeight: "1.6", margin: "0 0 20px 0", maxWidth: "280px" },
   emptyBtn: { padding: "9px 20px", fontSize: "13px", fontWeight: "600", color: "#ffffff", backgroundColor: "#111111", border: "none", borderRadius: "8px", cursor: "pointer" },
+  settleNote: { marginTop: "20px", padding: "14px 16px", backgroundColor: "#f9f9f9", borderRadius: "10px", border: "1px solid #f0f0f0" },
+  settleNoteText: { fontSize: "12px", color: "#aaaaaa", margin: "0", lineHeight: "1.6" },
   guardCard: { backgroundColor: "#ffffff", borderRadius: "16px", padding: "48px 32px", textAlign: "center", border: "1px solid #f0f0f0", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", marginTop: "40px" },
   guardIcon: { width: "56px", height: "56px", borderRadius: "16px", backgroundColor: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px auto" },
   guardTitle: { fontSize: "18px", fontWeight: "700", color: "#111111", margin: "0 0 8px 0" },

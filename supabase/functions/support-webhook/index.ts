@@ -32,10 +32,15 @@ Deno.serve(async (req: Request) => {
     const data = event.data;
     const metadata = data.metadata;
 
-    // Only handle support payments
+    console.log("reference:", data.reference);
+    console.log("metadata:", JSON.stringify(metadata));
+
     if (!metadata?.profile_id || !data.reference.startsWith("xeero_support_")) {
+      console.log("SKIPPED — reference or profile_id check failed");
       return new Response("OK", { status: 200 });
     }
+
+    console.log("PROCEEDING to save supporter");
 
     const {
       profile_id,
@@ -47,15 +52,19 @@ Deno.serve(async (req: Request) => {
     } = metadata;
 
     // Save supporter to database
-    await supabaseAdmin.from("supporters").insert({
+    const { error: insertError } = await supabaseAdmin.from("supporters").insert({
       profile_id,
       supporter_name,
       supporter_email,
-      amount: amount_usd,
+      amount: parseFloat(amount_usd),
       tier,
-      is_public: is_public ?? true,
+      is_public: is_public === true || is_public === "true",
       paystack_reference: data.reference,
     });
+    
+    if (insertError) {
+      console.error("Insert error:", insertError.message);
+    }
 
     // Fetch founder info for emails
     const { data: profile } = await supabaseAdmin

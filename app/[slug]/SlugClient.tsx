@@ -577,7 +577,8 @@ export default function SlugClient({
           body: JSON.stringify({
             profile_id: profile.id,
             amount_usd: supportAmount,
-            tier: supportAmount === 1 ? "Believer"
+            tier: supportAmount === 0.1 ? "Test"
+              : supportAmount === 1 ? "Believer"
               : supportAmount === 5 ? "Early Supporter"
               : supportAmount === 10 ? "Backing You"
               : supportAmount === 50 ? "Champion"
@@ -1063,6 +1064,7 @@ export default function SlugClient({
                     <p style={styles.supportLabel}>Choose an amount</p>
                     <div style={styles.supportTiers}>
                       {[
+                        { amount: 0.1, label: "Test (₦100)" },
                         { amount: 1, label: "Believer" },
                         { amount: 5, label: "Early Supporter" },
                         { amount: 10, label: "Backing You" },
@@ -1277,7 +1279,7 @@ const styles: Styles = {
   tierBtnActive: { backgroundColor: "#f0fff4", border: "1px solid #38a169" },
   tierAmount: { fontSize: "16px", fontWeight: "700", color: "#111111" },
   tierLabel: { fontSize: "10px", color: "#888888" },
-  supportInput: { width: "100%", padding: "11px 14px", fontSize: "13px", border: "1px solid #e5e5e5", borderRadius: "8px", outline: "none", backgroundColor: "#fafafa", boxSizing: "border-box" },
+  supportInput: { width: "100%", padding: "11px 14px", fontSize: "16px", border: "1px solid #e5e5e5", borderRadius: "8px", outline: "none", backgroundColor: "#fafafa", boxSizing: "border-box" },
   supportError: { fontSize: "12px", color: "#e53e3e", margin: "0" },
   supportPayBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", width: "100%", padding: "14px", fontSize: "14px", fontWeight: "600", color: "#ffffff", backgroundColor: "#38a169", border: "none", borderRadius: "10px", cursor: "pointer", transition: "opacity 0.2s ease" },
   supportDisclaimer: { fontSize: "11px", color: "#bbbbbb", textAlign: "center", margin: "0" },
