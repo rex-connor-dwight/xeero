@@ -48,6 +48,7 @@ export default function BroadcastPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLInputElement>(null);
+  const isSendingRef = useRef(false);
 
   const canSend = subject && header && body && (segment !== "single" || singleEmail);
 
@@ -114,12 +115,30 @@ export default function BroadcastPage() {
 
   // ── Send ──
   const handleSend = async () => {
-    if (!canSend) return;
+    if (!canSend || isSendingRef.current) return;
+    isSendingRef.current = true;
     setSending(true);
     setError("");
     setResult(null);
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
+
+      // Warm up the function first
+      await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/crm-broadcast`,
+        {
+          method: "OPTIONS",
+          headers: { "Authorization": `Bearer ${session?.access_token}` },
+        }
+      ).catch(() => {});
+
+      // Small delay to let it boot
+      await new Promise((r) => setTimeout(r, 800));
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/crm-broadcast`,
         {
@@ -138,15 +157,25 @@ export default function BroadcastPage() {
             cta_url: ctaUrl || undefined,
             image_url: imageUrl || undefined,
           }),
+          signal: controller.signal,
         }
       );
+      clearTimeout(timeout);
+
       const data = await res.json();
       if (!res.ok || data.error) setError(data.error || "Something went wrong.");
       else setResult(data);
-    } catch {
-      setError("Something went wrong. Please try again.");
+
+    } catch (err: any) {
+      if (err.name === "AbortError") {
+        setError("Request timed out. Please try again.");
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
     }
+
     setSending(false);
+    isSendingRef.current = false;
   };
 
   const handleReset = () => {
@@ -296,7 +325,7 @@ export default function BroadcastPage() {
                 style={{ display: "none" }}
                 onChange={handleImageUpload}
               />
-              <p style={styles.imageHint}>Recommended: 1200×400px PNG or JPG. Appears at top of email.</p>
+              <p style={styles.imageHint}>Recommended 1200×400px PNG or JPG. Appears at top of email.</p>
             </div>
 
             {/* Compose */}
@@ -366,6 +395,7 @@ export default function BroadcastPage() {
                 style={{
                   ...styles.sendBtn,
                   opacity: canSend && !sending ? 1 : 0.5,
+                  pointerEvents: sending ? "none" : "auto",
                 }}
                 onClick={handleSend}
                 disabled={!canSend || sending}
@@ -379,7 +409,7 @@ export default function BroadcastPage() {
               <div style={styles.sendingNote}>
                 <div style={styles.sendingDot} />
                 <p style={styles.sendingText}>
-                  Sending in batches of 50 with 500ms delays. May take a moment for large audiences.
+                  Warming up and sending in batches of 50. May take a moment.
                 </p>
               </div>
             )}
@@ -391,7 +421,6 @@ export default function BroadcastPage() {
               <p style={styles.previewLabel}>Email Preview</p>
               <div style={styles.previewCard}>
 
-                {/* Meta bar */}
                 <div style={styles.previewMeta}>
                   <p style={styles.previewMetaRow}>
                     <strong>From:</strong> Connor at Xeero &lt;connor@xeero.me&gt;
@@ -401,7 +430,6 @@ export default function BroadcastPage() {
                   </p>
                 </div>
 
-                {/* Image */}
                 {imageUrl ? (
                   <div style={styles.previewImageWrapper}>
                     <img src={imageUrl} alt="" style={styles.previewImage} />
@@ -410,14 +438,9 @@ export default function BroadcastPage() {
                   <div style={styles.previewGradientBar} />
                 )}
 
-                {/* Body */}
                 <div style={styles.previewBody}>
-                  {header && (
-                    <h2 style={styles.previewHeader}>{header}</h2>
-                  )}
-                  {body && (
-                    <p style={styles.previewBodyText}>{body}</p>
-                  )}
+                  {header && <h2 style={styles.previewHeader}>{header}</h2>}
+                  {body && <p style={styles.previewBodyText}>{body}</p>}
                   {ctaLabel && ctaUrl && (
                     <div style={{ marginBottom: "24px" }}>
                       <span style={styles.previewCtaBtn}>{ctaLabel} →</span>
@@ -470,12 +493,12 @@ const styles: Styles = {
   suggestionSub: { fontSize: "11px", color: "#aaaaaa", margin: "0" },
   imageUploadBtn: { display: "flex", alignItems: "center", gap: "8px", padding: "12px 16px", fontSize: "13px", color: "#888888", backgroundColor: "#f9f9f9", border: "1px dashed #dddddd", borderRadius: "10px", cursor: "pointer", width: "100%", justifyContent: "center" },
   imagePreviewWrapper: { position: "relative", borderRadius: "10px", overflow: "hidden" },
-  imagePreview: { width: "100%", display: "block", maxHeight: "180px", objectFit: "cover", borderRadius: "10px" },
+  imagePreview: { width: "100%", display: "block", maxHeight: "180px", objectFit: "cover" },
   imageRemoveBtn: { position: "absolute", top: "8px", right: "8px", width: "28px", height: "28px", borderRadius: "50%", backgroundColor: "rgba(0,0,0,0.5)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#ffffff" },
   imageHint: { fontSize: "11px", color: "#bbbbbb", margin: "0" },
   sendRow: { display: "flex", gap: "10px", alignItems: "center", justifyContent: "flex-end" },
   previewToggleBtn: { padding: "9px 16px", fontSize: "13px", fontWeight: "500", color: "#111111", backgroundColor: "#ffffff", border: "1px solid #e5e5e5", borderRadius: "8px", cursor: "pointer" },
-  sendBtn: { display: "flex", alignItems: "center", gap: "7px", padding: "10px 20px", fontSize: "13px", fontWeight: "600", color: "#ffffff", backgroundColor: "#111111", border: "none", borderRadius: "8px", cursor: "pointer" },
+  sendBtn: { display: "flex", alignItems: "center", gap: "7px", padding: "10px 20px", fontSize: "13px", fontWeight: "600", color: "#ffffff", backgroundColor: "#111111", border: "none", borderRadius: "8px", cursor: "pointer", transition: "opacity 0.2s ease" },
   errorText: { fontSize: "13px", color: "#e53e3e", margin: "0" },
   sendingNote: { display: "flex", alignItems: "flex-start", gap: "10px", padding: "12px 16px", backgroundColor: "#fffbeb", borderRadius: "10px", border: "1px solid #fef08a" },
   sendingDot: { width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#d69e2e", flexShrink: 0, marginTop: "4px" },
