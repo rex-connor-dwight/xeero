@@ -68,7 +68,20 @@ async function sleep(ms: number) {
 
 async function getEmailsForSegment(segment: string, singleEmail?: string): Promise<string[]> {
   if (segment === "single") {
-    return singleEmail ? [singleEmail] : [];
+    if (!singleEmail) return [];
+    // If it looks like an email address, use it directly
+    if (singleEmail.includes("@")) {
+      console.log("Single recipient email:", singleEmail);
+      return [singleEmail];
+    }
+    // Otherwise treat as user_id and fetch the email
+    console.log("Single recipient user_id:", singleEmail);
+    const { data: authData } = await supabaseAdmin.auth.admin.getUserById(singleEmail);
+    if (authData?.user?.email) {
+      console.log("Resolved email:", authData.user.email);
+      return [authData.user.email];
+    }
+    return [];
   }
 
   if (segment === "all" || segment === "live" || segment === "draft") {
@@ -76,12 +89,14 @@ async function getEmailsForSegment(segment: string, singleEmail?: string): Promi
     if (segment === "live") query = query.eq("is_live", true);
     if (segment === "draft") query = query.eq("is_live", false);
     const { data } = await query;
+    console.log(`Segment ${segment}: found ${data?.length || 0} profiles`);
     const emails: string[] = [];
     for (const p of (data || [])) {
       if (!p.user_id) continue;
       const { data: authData } = await supabaseAdmin.auth.admin.getUserById(p.user_id);
       if (authData?.user?.email) emails.push(authData.user.email);
     }
+    console.log(`Resolved ${emails.length} emails`);
     return emails;
   }
 
@@ -91,6 +106,7 @@ async function getEmailsForSegment(segment: string, singleEmail?: string): Promi
       .select("user_id, deck_url")
       .eq("is_live", true)
       .or("deck_url.is.null,deck_url.eq.");
+    console.log(`no_deck: found ${data?.length || 0} profiles`);
     const emails: string[] = [];
     for (const p of (data || [])) {
       if (!p.user_id) continue;
@@ -120,6 +136,7 @@ async function getEmailsForSegment(segment: string, singleEmail?: string): Promi
       const { data: authData } = await supabaseAdmin.auth.admin.getUserById(p.user_id);
       if (authData?.user?.email) emails.push(authData.user.email);
     }
+    console.log(`no_dataroom: resolved ${emails.length} emails`);
     return emails;
   }
 
@@ -152,6 +169,8 @@ Deno.serve(async (req: Request) => {
       image_url,
     } = await req.json();
 
+    console.log("Broadcast request:", { segment, single_email, subject });
+
     if (!subject || !header || !body) {
       return new Response(JSON.stringify({ error: "subject, header and body are required" }), {
         status: 400,
@@ -160,6 +179,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const emails = await getEmailsForSegment(segment, single_email);
+    console.log(`Total emails to send: ${emails.length}`);
 
     if (emails.length === 0) {
       return new Response(JSON.stringify({ error: "No recipients found for this segment" }), {
@@ -194,13 +214,23 @@ Deno.serve(async (req: Request) => {
               subject,
               html,
             }),
+          }).then(async (res) => {
+            const data = await res.json();
+            if (!res.ok) {
+              console.error("Resend error for", email, ":", JSON.stringify(data));
+              throw new Error(data.message || "Resend failed");
+            }
+            return data;
           })
         )
       );
 
       results.forEach((r) => {
         if (r.status === "fulfilled") sent++;
-        else failed++;
+        else {
+          failed++;
+          console.error("Failed:", r.reason);
+        }
       });
 
       if (i + BATCH_SIZE < emails.length) await sleep(BATCH_DELAY_MS);

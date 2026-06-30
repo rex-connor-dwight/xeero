@@ -32,6 +32,7 @@ export default function BroadcastPage() {
   const { user, loading } = useXeero();
   const [segment, setSegment] = useState<Segment>("all");
   const [singleEmail, setSingleEmail] = useState("");
+  const [singleEmailDisplay, setSingleEmailDisplay] = useState("");
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [subject, setSubject] = useState("");
@@ -54,11 +55,22 @@ export default function BroadcastPage() {
 
   // ── Debounced autocomplete ──
   useEffect(() => {
-    if (segment !== "single" || singleEmail.length < 2) {
+    if (segment !== "single") {
       setSuggestions([]);
       setShowSuggestions(false);
       return;
     }
+
+    const searchTerm = singleEmailDisplay || singleEmail;
+    if (searchTerm.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    // Don't search if user_id already selected
+    if (singleEmail && !singleEmailDisplay) return;
+
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -73,7 +85,7 @@ export default function BroadcastPage() {
         }
       );
       const data = await res.json();
-      const q = singleEmail.toLowerCase();
+      const q = searchTerm.toLowerCase();
       const matched = (data.profiles || [])
         .filter((p: any) =>
           p.founder_name?.toLowerCase().includes(q) ||
@@ -83,7 +95,7 @@ export default function BroadcastPage() {
       setSuggestions(matched);
       setShowSuggestions(matched.length > 0);
     }, 300);
-  }, [singleEmail, segment]);
+  }, [singleEmail, singleEmailDisplay, segment]);
 
   // ── Close suggestions on outside click ──
   useEffect(() => {
@@ -124,7 +136,7 @@ export default function BroadcastPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
 
-      // Warm up the function first
+      // Warm up the function
       await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/crm-broadcast`,
         {
@@ -133,11 +145,10 @@ export default function BroadcastPage() {
         }
       ).catch(() => {});
 
-      // Small delay to let it boot
       await new Promise((r) => setTimeout(r, 800));
 
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30000);
+      const timeout = setTimeout(() => controller.abort(), 60000);
 
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/crm-broadcast`,
@@ -187,6 +198,7 @@ export default function BroadcastPage() {
     setCtaUrl("");
     setImageUrl("");
     setSingleEmail("");
+    setSingleEmailDisplay("");
     setSegment("all");
     setError("");
   };
@@ -238,7 +250,12 @@ export default function BroadcastPage() {
                       ...styles.segmentCard,
                       ...(segment === s.key ? styles.segmentCardActive : {}),
                     }}
-                    onClick={() => setSegment(s.key)}
+                    onClick={() => {
+                      setSegment(s.key);
+                      setSingleEmail("");
+                      setSingleEmailDisplay("");
+                      setSuggestions([]);
+                    }}
                   >
                     <span style={{
                       color: segment === s.key ? "#111111" : "#aaaaaa",
@@ -265,19 +282,24 @@ export default function BroadcastPage() {
                 <div style={{ position: "relative" }} ref={suggestionsRef}>
                   <input
                     style={styles.input}
-                    placeholder="Search by founder name or startup..."
-                    value={singleEmail}
-                    onChange={(e) => setSingleEmail(e.target.value)}
+                    placeholder="Search by name, startup, or type email directly..."
+                    value={singleEmailDisplay || singleEmail}
+                    onChange={(e) => {
+                      setSingleEmailDisplay(e.target.value);
+                      setSingleEmail(e.target.value);
+                    }}
                     onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                   />
-                  {showSuggestions && (
+                  {showSuggestions && suggestions.length > 0 && (
                     <div style={styles.suggestions}>
                       {suggestions.map((s: any, i: number) => (
                         <button
                           key={i}
                           style={styles.suggestionItem}
                           onClick={() => {
-                            setSingleEmail(s.founder_name || s.startup_name);
+                            // Pass user_id — resolved to email in edge function
+                            setSingleEmail(s.user_id);
+                            setSingleEmailDisplay(`${s.founder_name} — ${s.startup_name}`);
                             setShowSuggestions(false);
                           }}
                         >
