@@ -10,6 +10,7 @@ import {
   DollarSign,
   LogOut,
   ChevronRight,
+  Mail,
 } from "lucide-react";
 
 const ADMIN_EMAILS = ["connor@xeero.me"];
@@ -25,6 +26,7 @@ const navItems: NavItem[] = [
   { label: "Applications", icon: <FileText size={16} />, path: "/crm/applications" },
   { label: "Users", icon: <Users size={16} />, path: "/crm/users" },
   { label: "Finance", icon: <DollarSign size={16} />, path: "/crm/finance" },
+  { label: "Broadcast", icon: <Mail size={16} />, path: "/crm/broadcast" },
 ];
 
 export default function CrmLayout({ children }: { children: React.ReactNode }) {
