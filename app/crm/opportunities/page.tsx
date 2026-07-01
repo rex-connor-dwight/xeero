@@ -12,6 +12,7 @@ import {
   Trash2,
   RefreshCw,
   ExternalLink,
+  Zap,
 } from "lucide-react";
 
 const ADMIN_EMAILS = ["connor@xeero.me"];
@@ -32,9 +33,7 @@ type Opportunity = {
 
 function formatDate(dateString: string) {
   return new Date(dateString).toLocaleDateString("en-US", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
+    day: "numeric", month: "short", year: "numeric",
   });
 }
 
@@ -64,6 +63,12 @@ export default function OpportunitiesPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
+  // Test send
+  const [testEmail, setTestEmail] = useState("");
+  const [testSending, setTestSending] = useState(false);
+  const [testSent, setTestSent] = useState(false);
+  const [savedDraftId, setSavedDraftId] = useState<string | null>(null);
+
   const fetchData = async () => {
     setDataLoading(true);
     const { data } = await supabase
@@ -75,9 +80,7 @@ export default function OpportunitiesPage() {
   };
 
   useEffect(() => {
-    if (!loading && user && ADMIN_EMAILS.includes(user.email || "")) {
-      fetchData();
-    }
+    if (!loading && user && ADMIN_EMAILS.includes(user.email || "")) fetchData();
   }, [loading, user]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -96,15 +99,13 @@ export default function OpportunitiesPage() {
     setImageUploading(false);
   };
 
-  const handleSaveDraft = async () => {
+  // Save draft and return id
+  const saveDraft = async (): Promise<string | null> => {
     if (!title || !description || !ctaLabel || !ctaUrl || !startDate || !endDate) {
       setFormError("Please fill in all required fields.");
-      return;
+      return null;
     }
-    setSaving(true);
-    setFormError("");
-
-    const { error } = await supabase.from("opportunities").insert({
+    const { data, error } = await supabase.from("opportunities").insert({
       title,
       description,
       image_url: imageUrl || null,
@@ -114,16 +115,78 @@ export default function OpportunitiesPage() {
       end_date: new Date(endDate).toISOString(),
       target,
       published: false,
-    });
+    }).select().single();
 
-    if (error) {
-      setFormError("Something went wrong. Please try again.");
-    } else {
+    if (error || !data) return null;
+    setSavedDraftId(data.id);
+    return data.id;
+  };
+
+  const handleSaveDraft = async () => {
+    setSaving(true);
+    setFormError("");
+    const id = await saveDraft();
+    if (id) {
       resetForm();
       setShowForm(false);
       await fetchData();
+    } else {
+      setFormError("Something went wrong. Please try again.");
     }
     setSaving(false);
+  };
+
+  const handleTestSend = async () => {
+    if (!testEmail || !title || !description || !ctaLabel || !ctaUrl || !endDate) {
+      setFormError("Fill in all required fields before sending a test.");
+      return;
+    }
+    setTestSending(true);
+    setFormError("");
+
+    // Use existing draft or save a new one
+    let draftId = savedDraftId;
+    if (!draftId) {
+      draftId = await saveDraft();
+      await fetchData();
+    }
+
+    if (!draftId) {
+      setTestSending(false);
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      // Warm up
+      await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/notify-opportunity`,
+        { method: "OPTIONS", headers: { "Authorization": `Bearer ${session?.access_token}` } }
+      ).catch(() => {});
+      await new Promise((r) => setTimeout(r, 800));
+
+      await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/notify-opportunity`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            opportunity_id: draftId,
+            test_email: testEmail,
+          }),
+        }
+      );
+
+      setTestSent(true);
+      setTimeout(() => setTestSent(false), 4000);
+    } catch {
+      setFormError("Test send failed. Please try again.");
+    }
+    setTestSending(false);
   };
 
   const handlePublish = async (opp: Opportunity) => {
@@ -131,7 +194,6 @@ export default function OpportunitiesPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
 
-      // Warm up
       await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/notify-opportunity`,
         { method: "OPTIONS", headers: { "Authorization": `Bearer ${session?.access_token}` } }
@@ -160,6 +222,7 @@ export default function OpportunitiesPage() {
   const handleDelete = async (id: string) => {
     setDeleting(id);
     await supabase.from("opportunities").delete().eq("id", id);
+    if (savedDraftId === id) setSavedDraftId(null);
     await fetchData();
     setDeleting(null);
   };
@@ -174,6 +237,9 @@ export default function OpportunitiesPage() {
     setEndDate("");
     setTarget("all");
     setFormError("");
+    setTestEmail("");
+    setTestSent(false);
+    setSavedDraftId(null);
   };
 
   if (loading || dataLoading) {
@@ -188,7 +254,7 @@ export default function OpportunitiesPage() {
       <div style={styles.header}>
         <div>
           <h1 style={styles.title}>Opportunities</h1>
-          <p style={styles.sub}>Funding opportunities, pitch competitions and investor events for founders.</p>
+          <p style={styles.sub}>Funding opportunities, pitch competitions and investor events.</p>
         </div>
         <div style={styles.headerRight}>
           <button style={styles.refreshBtn} onClick={fetchData}>
@@ -240,7 +306,7 @@ export default function OpportunitiesPage() {
               <label style={styles.label}>Description <span style={styles.req}>*</span></label>
               <textarea
                 style={styles.textarea}
-                placeholder="Describe the opportunity. Who is it for? What do they get? What's required to apply?"
+                placeholder="Who is it for? What do they get? What's required to apply?"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
@@ -276,6 +342,37 @@ export default function OpportunitiesPage() {
 
               {formError && <p style={styles.errorText}>{formError}</p>}
 
+              {/* Test send */}
+              <div style={styles.testSection}>
+                <p style={styles.testLabel}>Send Test</p>
+                <div style={styles.testRow}>
+                  <input
+                    style={{ ...styles.input, margin: "0", flex: 1 }}
+                    placeholder="test@email.com"
+                    type="email"
+                    value={testEmail}
+                    onChange={(e) => setTestEmail(e.target.value)}
+                  />
+                  <button
+                    style={{
+                      ...styles.testBtn,
+                      opacity: testEmail && title && description ? 1 : 0.5,
+                      backgroundColor: testSent ? "#38a169" : "#f5f5f5",
+                      color: testSent ? "#ffffff" : "#111111",
+                    }}
+                    onClick={handleTestSend}
+                    disabled={testSending || !testEmail || !title || !description}
+                  >
+                    {testSending ? "Sending..." : testSent ? "Sent!" : "Send Test"}
+                  </button>
+                </div>
+                <p style={styles.testHint}>
+                  {savedDraftId
+                    ? "Draft saved. Test will use this draft."
+                    : "Saves a draft automatically before sending test."}
+                </p>
+              </div>
+
               <div style={styles.formActions}>
                 <button
                   style={{ ...styles.saveDraftBtn, opacity: saving ? 0.6 : 1 }}
@@ -289,7 +386,7 @@ export default function OpportunitiesPage() {
 
             {/* Preview */}
             <div style={styles.formRight}>
-              <p style={styles.previewLabel}>Notification Preview</p>
+              <p style={styles.previewLabel}>Preview</p>
               <div style={styles.previewCard}>
                 {imageUrl ? (
                   <img src={imageUrl} alt="" style={styles.previewImage} />
@@ -310,7 +407,7 @@ export default function OpportunitiesPage() {
                     </div>
                   )}
                   {ctaLabel && (
-                    <div style={styles.previewCta}>
+                    <div>
                       <span style={styles.previewCtaBtn}>{ctaLabel} →</span>
                     </div>
                   )}
@@ -321,19 +418,18 @@ export default function OpportunitiesPage() {
         </div>
       )}
 
-      {/* ── Active Opportunities ── */}
+      {/* ── Active ── */}
       <div style={styles.section}>
         <p style={styles.sectionLabel}>Active ({active.length})</p>
         {active.length === 0 && (
           <div style={styles.emptyCard}>
+            <div style={styles.emptyIcon}><Zap size={20} color="#cccccc" /></div>
             <p style={styles.emptyText}>No active opportunities. Create one above.</p>
           </div>
         )}
         {active.map((opp) => (
           <div key={opp.id} style={styles.oppCard}>
-            {opp.image_url && (
-              <img src={opp.image_url} alt="" style={styles.oppImage} />
-            )}
+            {opp.image_url && <img src={opp.image_url} alt="" style={styles.oppImage} />}
             <div style={styles.oppBody}>
               <div style={styles.oppTop}>
                 <div style={styles.oppLeft}>
@@ -350,9 +446,7 @@ export default function OpportunitiesPage() {
                     <span style={styles.targetBadge}>{opp.target}</span>
                   </div>
                   <p style={styles.oppDesc}>{opp.description.slice(0, 120)}{opp.description.length > 120 ? "..." : ""}</p>
-                  <p style={styles.oppMeta}>
-                    {formatDate(opp.start_date)} → {formatDate(opp.end_date)}
-                  </p>
+                  <p style={styles.oppMeta}>{formatDate(opp.start_date)} → {formatDate(opp.end_date)}</p>
                 </div>
                 <div style={styles.oppActions}>
                   <a href={opp.cta_url} target="_blank" rel="noopener noreferrer" style={styles.iconBtn}>
@@ -429,7 +523,7 @@ const styles: Styles = {
   formCloseBtn: { background: "none", border: "none", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" },
   formGrid: { display: "flex", gap: "24px", alignItems: "flex-start" },
   formLeft: { flex: 1, display: "flex", flexDirection: "column", gap: "10px" },
-  formRight: { width: "300px", flexShrink: 0 },
+  formRight: { width: "280px", flexShrink: 0, position: "sticky", top: "32px" },
   label: { fontSize: "12px", fontWeight: "500", color: "#555555", display: "block" },
   req: { color: "#e53e3e" },
   input: { width: "100%", padding: "10px 13px", fontSize: "13px", border: "1px solid #e5e5e5", borderRadius: "8px", outline: "none", backgroundColor: "#fafafa", boxSizing: "border-box", color: "#111111" },
@@ -441,6 +535,11 @@ const styles: Styles = {
   imagePreview: { width: "100%", display: "block", maxHeight: "160px", objectFit: "cover" },
   imageRemoveBtn: { position: "absolute", top: "8px", right: "8px", width: "28px", height: "28px", borderRadius: "50%", backgroundColor: "rgba(0,0,0,0.5)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#ffffff" },
   errorText: { fontSize: "13px", color: "#e53e3e", margin: "0" },
+  testSection: { backgroundColor: "#f9f9f9", borderRadius: "10px", padding: "14px", border: "1px solid #f0f0f0", display: "flex", flexDirection: "column", gap: "8px" },
+  testLabel: { fontSize: "11px", fontWeight: "600", color: "#aaaaaa", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0" },
+  testRow: { display: "flex", gap: "8px", alignItems: "center" },
+  testBtn: { padding: "10px 14px", fontSize: "12px", fontWeight: "600", border: "none", borderRadius: "8px", cursor: "pointer", flexShrink: 0, transition: "all 0.2s ease" },
+  testHint: { fontSize: "11px", color: "#bbbbbb", margin: "0" },
   formActions: { display: "flex", gap: "10px", justifyContent: "flex-end" },
   saveDraftBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "10px 20px", fontSize: "13px", fontWeight: "600", color: "#ffffff", backgroundColor: "#111111", border: "none", borderRadius: "8px", cursor: "pointer" },
   previewLabel: { fontSize: "11px", fontWeight: "600", color: "#aaaaaa", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 10px 0" },
@@ -454,11 +553,11 @@ const styles: Styles = {
   previewDesc: { fontSize: "12px", color: "#555555", lineHeight: "1.7", margin: "0 0 12px 0" },
   previewDeadline: { padding: "8px 12px", backgroundColor: "#fffbeb", border: "1px solid #fef08a", borderRadius: "6px", marginBottom: "12px" },
   previewDeadlineText: { fontSize: "11px", color: "#d69e2e", fontWeight: "600", margin: "0" },
-  previewCta: { marginTop: "4px" },
   previewCtaBtn: { display: "inline-block", padding: "8px 16px", backgroundColor: "#111111", color: "#ffffff", fontSize: "12px", fontWeight: "600", borderRadius: "6px" },
   section: { marginBottom: "24px" },
   sectionLabel: { fontSize: "11px", fontWeight: "600", color: "#aaaaaa", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 12px 0" },
-  emptyCard: { backgroundColor: "#ffffff", borderRadius: "12px", padding: "32px", border: "1px solid #f0f0f0", textAlign: "center" },
+  emptyCard: { backgroundColor: "#ffffff", borderRadius: "12px", padding: "32px", border: "1px solid #f0f0f0", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" },
+  emptyIcon: { width: "44px", height: "44px", borderRadius: "12px", backgroundColor: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center" },
   emptyText: { fontSize: "13px", color: "#aaaaaa", margin: "0" },
   oppCard: { backgroundColor: "#ffffff", borderRadius: "14px", border: "1px solid #f0f0f0", overflow: "hidden", marginBottom: "10px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" },
   oppImage: { width: "100%", height: "100px", objectFit: "cover", display: "block" },

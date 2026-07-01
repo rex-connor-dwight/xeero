@@ -82,7 +82,6 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    // Verify admin
     const authHeader = req.headers.get("Authorization");
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(
       authHeader?.replace("Bearer ", "") || ""
@@ -94,7 +93,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const { opportunity_id } = await req.json();
+    const { opportunity_id, test_email } = await req.json();
 
     if (!opportunity_id) {
       return new Response(JSON.stringify({ error: "opportunity_id is required" }), {
@@ -117,14 +116,6 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Fetch target profiles
-    let query = supabaseAdmin.from("profiles").select("id, user_id, is_live");
-    if (opportunity.target === "live") query = query.eq("is_live", true);
-    if (opportunity.target === "draft") query = query.eq("is_live", false);
-    const { data: profiles } = await query;
-
-    console.log(`Notifying ${profiles?.length || 0} founders for opportunity: ${opportunity.title}`);
-
     const html = buildEmailHtml(
       opportunity.title,
       opportunity.description,
@@ -134,12 +125,44 @@ Deno.serve(async (req: Request) => {
       opportunity.end_date
     );
 
+    // ── Test mode — single email, no notifications, no publish ──
+    if (test_email) {
+      console.log("Test send to:", test_email);
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${RESEND_API_KEY}`,
+        },
+        body: JSON.stringify({
+          from: "Connor at Xeero <connor@xeero.me>",
+          to: [test_email],
+          subject: `[TEST] ${opportunity.title}`,
+          html,
+        }),
+      });
+      const data = await res.json();
+      console.log("Test send result:", data);
+      return new Response(
+        JSON.stringify({ success: true, test: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ── Full publish — notify all target founders ──
+    let query = supabaseAdmin.from("profiles").select("id, user_id, is_live");
+    if (opportunity.target === "live") query = query.eq("is_live", true);
+    if (opportunity.target === "draft") query = query.eq("is_live", false);
+    const { data: profiles } = await query;
+
+    console.log(`Notifying ${profiles?.length || 0} founders`);
+
+    const allProfiles = profiles || [];
     let emailsSent = 0;
     let notificationsCreated = 0;
     const BATCH_SIZE = 50;
-    const allProfiles = profiles || [];
 
-    // Insert notifications for all profiles first
+    // Insert notifications
     for (const profile of allProfiles) {
       const { error: notifError } = await supabaseAdmin.from("notifications").insert({
         profile_id: profile.id,
@@ -164,7 +187,6 @@ Deno.serve(async (req: Request) => {
           if (!profile.user_id) return;
           const { data: authData } = await supabaseAdmin.auth.admin.getUserById(profile.user_id);
           if (!authData?.user?.email) return;
-
           return fetch("https://api.resend.com/emails", {
             method: "POST",
             headers: {
@@ -185,20 +207,14 @@ Deno.serve(async (req: Request) => {
       if (i + BATCH_SIZE < allProfiles.length) await sleep(500);
     }
 
-    // Mark opportunity as published
+    // Mark as published
     await supabaseAdmin
       .from("opportunities")
       .update({ published: true })
       .eq("id", opportunity_id);
 
-    console.log(`Done — ${emailsSent} emails sent, ${notificationsCreated} notifications created`);
-
     return new Response(
-      JSON.stringify({
-        success: true,
-        emails_sent: emailsSent,
-        notifications_created: notificationsCreated,
-      }),
+      JSON.stringify({ success: true, emails_sent: emailsSent, notifications_created: notificationsCreated }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
