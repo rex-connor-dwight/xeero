@@ -61,6 +61,7 @@ export type Profile = {
   validation_score: number | null;
   validation_band: string | null;
   validation_answers: any | null;
+  subaccount_code: string | null;
 };
 
 type XeeroContextType = {
@@ -73,6 +74,32 @@ type XeeroContextType = {
   updateProfileCache: (updates: Partial<Profile>) => void;
   signOut: () => Promise<void>;
 };
+
+// ── Cache helpers ──────────────────────────────────────────────────────────
+
+const CACHE_KEY = "xeero_profile_cache";
+
+function readCache(userId: string): Profile | null {
+  try {
+    const raw = localStorage.getItem(`${CACHE_KEY}_${userId}`);
+    if (!raw) return null;
+    return JSON.parse(raw) as Profile;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(userId: string, profile: Profile) {
+  try {
+    localStorage.setItem(`${CACHE_KEY}_${userId}`, JSON.stringify(profile));
+  } catch {}
+}
+
+function clearCache(userId: string) {
+  try {
+    localStorage.removeItem(`${CACHE_KEY}_${userId}`);
+  } catch {}
+}
 
 // ── Context ────────────────────────────────────────────────────────────────
 
@@ -97,9 +124,18 @@ export function XeeroProvider({ children }: { children: React.ReactNode }) {
   const [profileLoading, setProfileLoading] = useState(true);
   const realtimeChannel = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  // ── Fetch profile ──
-  const fetchProfile = useCallback(async (userId: string) => {
-    setProfileLoading(true);
+  // ── Fetch profile — uses cache first, then background refresh ──
+  const fetchProfile = useCallback(async (userId: string, silent = false) => {
+    // Load from cache instantly
+    const cached = readCache(userId);
+    if (cached) {
+      setProfile(cached);
+      setProfileLoading(false); // show cached data immediately
+    } else if (!silent) {
+      setProfileLoading(true);
+    }
+
+    // Always fetch fresh data in background
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
@@ -108,23 +144,31 @@ export function XeeroProvider({ children }: { children: React.ReactNode }) {
 
     if (!error && data) {
       setProfile(data as Profile);
+      writeCache(userId, data as Profile);
     }
+
     setProfileLoading(false);
   }, []);
 
   // ── Refresh profile manually ──
   const refreshProfile = useCallback(async () => {
     if (!user) return;
-    await fetchProfile(user.id);
+    await fetchProfile(user.id, true);
   }, [user, fetchProfile]);
 
   // ── Update profile cache optimistically ──
   const updateProfileCache = useCallback((updates: Partial<Profile>) => {
-    setProfile((prev) => prev ? { ...prev, ...updates } : prev);
+    setProfile((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev, ...updates };
+      writeCache(prev.user_id, updated);
+      return updated;
+    });
   }, []);
 
   // ── Sign out ──
   const signOut = useCallback(async () => {
+    if (user) clearCache(user.id);
     if (realtimeChannel.current) {
       await supabase.removeChannel(realtimeChannel.current);
       realtimeChannel.current = null;
@@ -133,9 +177,9 @@ export function XeeroProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setSession(null);
     setProfile(null);
-  }, []);
+  }, [user]);
 
-  // ── Setup realtime listener for profile changes ──
+  // ── Realtime listener ──
   const setupRealtime = useCallback((userId: string) => {
     if (realtimeChannel.current) {
       supabase.removeChannel(realtimeChannel.current);
@@ -153,7 +197,9 @@ export function XeeroProvider({ children }: { children: React.ReactNode }) {
         },
         (payload) => {
           if (payload.eventType === "UPDATE" || payload.eventType === "INSERT") {
-            setProfile(payload.new as Profile);
+            const updated = payload.new as Profile;
+            setProfile(updated);
+            writeCache(userId, updated);
           }
         }
       )
@@ -162,7 +208,6 @@ export function XeeroProvider({ children }: { children: React.ReactNode }) {
 
   // ── Auth state listener ──
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -175,7 +220,6 @@ export function XeeroProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
@@ -193,11 +237,6 @@ export function XeeroProvider({ children }: { children: React.ReactNode }) {
             await supabase.removeChannel(realtimeChannel.current);
             realtimeChannel.current = null;
           }
-        }
-
-        if (event === "TOKEN_REFRESHED" && session?.user) {
-          // Session refreshed silently — no action needed
-          // Supabase handles token refresh automatically
         }
 
         setLoading(false);
@@ -225,6 +264,33 @@ export function XeeroProvider({ children }: { children: React.ReactNode }) {
         signOut,
       }}
     >
+      {/* ── Global page loader ── */}
+      {(loading || profileLoading) && !profile && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 9999,
+          height: "2px",
+          backgroundColor: "#f0f0f0",
+          overflow: "hidden",
+        }}>
+          <div style={{
+            height: "100%",
+            backgroundColor: "#111111",
+            animation: "xeero-progress 1.2s ease-in-out infinite",
+            width: "40%",
+          }} />
+        </div>
+      )}
+      <style>{`
+        @keyframes xeero-progress {
+          0% { transform: translateX(-100%); }
+          50% { transform: translateX(150%); }
+          100% { transform: translateX(400%); }
+        }
+      `}</style>
       {children}
     </XeeroContext.Provider>
   );

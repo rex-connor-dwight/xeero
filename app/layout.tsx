@@ -1,64 +1,95 @@
-import type { Metadata } from "next";
-import "./globals.css";
-import { XeeroProvider } from "@/lib/context";
+"use client";
 
-export const metadata: Metadata = {
-  title: "Xeero: Everything your startup needs in one link",
-  description: "Build a professional startup profile in minutes. Share your pitch deck, waitlist, data room, and founder CV with investors, all from one clean link.",
-  keywords: ["startup profile", "pitch deck", "founder profile", "data room", "African startups", "fundraising tool", "investor ready"],
-  authors: [{ name: "Xeero" }],
-  creator: "Xeero",
-  metadataBase: new URL("https://xeero.me"),
-  icons: {
-    icon: "/favicon.png",
-    shortcut: "/favicon.png",
-    apple: "/favicon.png",
-  },
-  openGraph: {
-    title: "Xeero: Everything your startup needs in one link",
-    description: "Build a professional startup profile in minutes. One link holds your pitch deck, waitlist, data room, and founder CV.",
-    url: "https://xeero.me",
-    siteName: "Xeero",
-    type: "website",
-    locale: "en_US",
-    images: [
-      {
-        url: "https://xeero.me/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "Xeero — Everything your startup needs in one link",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Xeero: Everything your startup needs in one link",
-    description: "Build a professional startup profile in minutes. One link for investors, press, and early users.",
-    creator: "@xeero",
-    images: ["https://xeero.me/og-image.png"],
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-    },
-  },
-};
+import { useEffect, useState, useRef } from "react";
+import { usePathname } from "next/navigation";
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function NavigationLoader() {
+  const pathname = usePathname();
+  const [visible, setVisible] = useState(false);
+  const [width, setWidth] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const prevPathname = useRef(pathname);
+
+  useEffect(() => {
+    if (pathname === prevPathname.current) return;
+    prevPathname.current = pathname;
+
+    // Page changed — complete the bar
+    setWidth(100);
+    setTimeout(() => {
+      setVisible(false);
+      setWidth(0);
+    }, 300);
+  }, [pathname]);
+
+  // Intercept link clicks to start the loader
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement).closest("a");
+      if (!target) return;
+      const href = target.getAttribute("href");
+      if (!href || href.startsWith("http") || href.startsWith("mailto") || href.startsWith("#")) return;
+
+      // Internal navigation — start loader
+      setVisible(true);
+      setWidth(0);
+
+      if (intervalRef.current) clearInterval(intervalRef.current);
+
+      // Animate to ~80% then stall waiting for page
+      let w = 0;
+      intervalRef.current = setInterval(() => {
+        w += Math.random() * 15;
+        if (w >= 80) {
+          w = 80;
+          if (intervalRef.current) clearInterval(intervalRef.current);
+        }
+        setWidth(w);
+      }, 150);
+    };
+
+    document.addEventListener("click", handleClick);
+    return () => {
+      document.removeEventListener("click", handleClick);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  if (!visible) return null;
+
   return (
-    <html lang="en">
-      <body>
-        <XeeroProvider>
-          {children}
-        </XeeroProvider>
-      </body>
-    </html>
+    <>
+      <div style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 99999,
+        height: "2px",
+        backgroundColor: "transparent",
+        pointerEvents: "none",
+      }}>
+        <div style={{
+          height: "100%",
+          backgroundColor: "#111111",
+          width: `${width}%`,
+          transition: width === 100 ? "width 0.2s ease" : "width 0.15s ease",
+          borderRadius: "0 2px 2px 0",
+        }} />
+      </div>
+      {/* Subtle full-page overlay to prevent double clicks during transition */}
+      <div style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 99998,
+        pointerEvents: "none",
+        backgroundColor: "rgba(255,255,255,0)",
+      }} />
+    </>
   );
 }
