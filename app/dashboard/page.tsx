@@ -20,18 +20,12 @@ import {
   Lightbulb,
 } from "lucide-react";
 
-// ── Types ──────────────────────────────────────────────────────────────────
-
 type WaitlistEntry = {
   id: string;
   email: string;
   name: string;
   created_at: string;
 };
-
-// ── Logic ──────────────────────────────────────────────────────────────────
-
-
 
 function getInitials(name: string) {
   if (!name) return "X";
@@ -48,8 +42,6 @@ function timeAgo(dateString: string) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-// ── Banner ─────────────────────────────────────────────────────────────────
-
 const bannerMessages = [
   "Founders who complete their Xeero profile get 3x more investor reach.",
   "Your waitlist is your first proof of demand. Keep sharing.",
@@ -63,7 +55,6 @@ function HeroBanner({ startupName }: { startupName: string }) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("payment") === "success") {
-      // Clean the URL
       window.history.replaceState({}, "", "/dashboard");
     }
   }, []);
@@ -115,54 +106,34 @@ const bannerStyles: BannerStyles = {
     overflow: "hidden",
     marginBottom: "20px",
   },
-  svg: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    width: "100%",
-    height: "100%",
-    pointerEvents: "none",
-  },
+  svg: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" },
   content: { position: "relative", zIndex: 1 },
-  greeting: {
-    fontSize: "12px",
-    color: "rgba(255,255,255,0.5)",
-    textTransform: "uppercase",
-    letterSpacing: "0.08em",
-    marginBottom: "10px",
-  },
-  message: {
-    fontSize: "18px",
-    fontWeight: "600",
-    color: "#ffffff",
-    lineHeight: "1.5",
-    maxWidth: "480px",
-    margin: "0 0 16px 0",
-  },
+  greeting: { fontSize: "12px", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px" },
+  message: { fontSize: "18px", fontWeight: "600", color: "#ffffff", lineHeight: "1.5", maxWidth: "480px", margin: "0 0 16px 0" },
   dots: { display: "flex", gap: "6px" },
-  dot: {
-    width: "5px",
-    height: "5px",
-    borderRadius: "50%",
-    transition: "background-color 0.3s ease",
-  },
+  dot: { width: "5px", height: "5px", borderRadius: "50%", transition: "background-color 0.3s ease" },
 };
-
-// ── Component ──────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
   const router = useRouter();
   const { profile, profileLoading } = useXeero();
   const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([]);
   const [waitlistCount, setWaitlistCount] = useState(0);
-  const [waitlistLoading, setWaitlistLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [profileViews, setProfileViews] = useState(0);
   const [dataRoomRequests, setDataRoomRequests] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   useEffect(() => {
     if (!profile) return;
-  
+
     supabase
       .from("waitlist")
       .select("*", { count: "exact" })
@@ -172,24 +143,19 @@ export default function DashboardPage() {
       .then(({ data, count }) => {
         setWaitlist(data || []);
         setWaitlistCount(count || 0);
-        setWaitlistLoading(false);
       });
-  
+
     supabase
       .from("profile_views")
       .select("*", { count: "exact" })
       .eq("profile_id", profile.id)
-      .then(({ count }) => {
-        setProfileViews(count || 0);
-      });
+      .then(({ count }) => setProfileViews(count || 0));
 
-      supabase
+    supabase
       .from("data_room_requests")
       .select("*", { count: "exact" })
       .eq("profile_id", profile.id)
-      .then(({ count }) => {
-        setDataRoomRequests(count || 0);
-      });
+      .then(({ count }) => setDataRoomRequests(count || 0));
   }, [profile]);
 
   const handleCopyLink = () => {
@@ -199,7 +165,7 @@ export default function DashboardPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (profileLoading || waitlistLoading) {
+  if (profileLoading && !profile) {
     return (
       <div style={styles.loadingPage}>
         <div style={styles.loadingDot} />
@@ -221,36 +187,22 @@ export default function DashboardPage() {
             {profile.logo_url ? (
               <img src={profile.logo_url} alt="logo" style={styles.profileAvatarImg} />
             ) : (
-              <span style={styles.profileAvatarText}>
-                {getInitials(profile.startup_name)}
-              </span>
+              <span style={styles.profileAvatarText}>{getInitials(profile.startup_name)}</span>
             )}
           </div>
           <div>
             <div style={styles.profileNameRow}>
               <h2 style={styles.profileName}>{profile.startup_name}</h2>
-              <span style={{
-                ...styles.statusBadge,
-                ...(profile.is_live ? styles.statusLive : styles.statusDraft),
-              }}>
-                <span style={{
-                  ...styles.statusDot,
-                  backgroundColor: profile.is_live ? "#38a169" : "#aaaaaa",
-                }} />
+              <span style={{ ...styles.statusBadge, ...(profile.is_live ? styles.statusLive : styles.statusDraft) }}>
+                <span style={{ ...styles.statusDot, backgroundColor: profile.is_live ? "#38a169" : "#aaaaaa" }} />
                 {profile.is_live ? "Live" : "Draft"}
               </span>
             </div>
-            <p style={styles.profileTagline}>
-              {profile.tagline || "No tagline yet"}
-            </p>
+            <p style={styles.profileTagline}>{profile.tagline || "No tagline yet"}</p>
           </div>
         </div>
-        <button
-          style={styles.editProfileBtn}
-          onClick={() => router.push("/dashboard/edit")}
-        >
-          <Edit3 size={13} />
-          Edit
+        <button style={styles.editProfileBtn} onClick={() => router.push("/dashboard/edit")}>
+          <Edit3 size={13} />Edit
         </button>
       </div>
 
@@ -258,10 +210,7 @@ export default function DashboardPage() {
       <div style={styles.linkRow}>
         <div style={styles.linkLeft}>
           <Link2 size={13} color={profile.is_live ? "#111111" : "#aaaaaa"} />
-          <span style={{
-            ...styles.linkText,
-            color: profile.is_live ? "#111111" : "#aaaaaa",
-          }}>
+          <span style={{ ...styles.linkText, color: profile.is_live ? "#111111" : "#aaaaaa" }}>
             xeero.me/{profile.slug}
           </span>
         </div>
@@ -269,60 +218,57 @@ export default function DashboardPage() {
           {profile.is_live ? (
             <>
               <button style={styles.copyBtn} onClick={handleCopyLink}>
-                {copied ? (
-                  <><CheckCheck size={12} color="#38a169" /><span style={{ color: "#38a169" }}>Copied</span></>
-                ) : (
-                  <><Copy size={12} />Copy</>
-                )}
+                {copied
+                  ? <><CheckCheck size={12} color="#38a169" /><span style={{ color: "#38a169" }}>Copied</span></>
+                  : <><Copy size={12} />Copy</>
+                }
               </button>
-              
-              <a  href={`https://xeero.me/${profile.slug}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={styles.visitBtn}
-              >
-                <ExternalLink size={12} />
-                Visit
+              <a href={`https://xeero.me/${profile.slug}`} target="_blank" rel="noopener noreferrer" style={styles.visitBtn}>
+                <ExternalLink size={12} />Visit
               </a>
             </>
           ) : (
-            <button
-              style={styles.goLiveBtn}
-              onClick={() => router.push("/payment")}
-            >
-              <Lock size={12} />
-              Unlock — Go Live
+            <button style={styles.goLiveBtn} onClick={() => router.push("/payment")}>
+              <Lock size={12} />Unlock — Go Live
             </button>
           )}
         </div>
       </div>
 
       {/* ── Stats ── */}
-      <div style={styles.statsRow}>
-        <div style={styles.statCard}>
-          <div style={styles.statTop}>
-            <div style={styles.statIconBox}><Users size={15} color="#111111" /></div>
-            <span style={styles.statLabel}>Waitlist</span>
+      <div style={{
+        ...styles.statsRow,
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+      }}>
+        {[
+          { icon: <Users size={15} color="#111111" />, label: "Waitlist", value: waitlistCount, sub: "Total signups" },
+          { icon: <Eye size={15} color="#111111" />, label: "Views", value: profileViews, sub: "Profile views" },
+          { icon: <TrendingUp size={15} color="#111111" />, label: "Data Room", value: dataRoomRequests, sub: "Requests received" },
+        ].map((stat) => (
+          <div key={stat.label} style={isMobile ? styles.statCardMobile : styles.statCard}>
+            {isMobile ? (
+              // Mobile — inline horizontal layout
+              <div style={styles.statCardMobileInner}>
+                <div style={styles.statIconBox}>{stat.icon}</div>
+                <div style={styles.statMobileInfo}>
+                  <span style={styles.statLabel}>{stat.label}</span>
+                  <span style={styles.statSub}>{stat.sub}</span>
+                </div>
+                <span style={styles.statValueMobile}>{stat.value}</span>
+              </div>
+            ) : (
+              // Desktop — vertical layout
+              <>
+                <div style={styles.statTop}>
+                  <div style={styles.statIconBox}>{stat.icon}</div>
+                  <span style={styles.statLabel}>{stat.label}</span>
+                </div>
+                <p style={styles.statValue}>{stat.value}</p>
+                <p style={styles.statSub}>{stat.sub}</p>
+              </>
+            )}
           </div>
-          <p style={styles.statValue}>{waitlistCount}</p>
-          <p style={styles.statSub}>Total signups</p>
-        </div>
-        <div style={styles.statCard}>
-          <div style={styles.statTop}>
-            <div style={styles.statIconBox}><Eye size={15} color="#111111" /></div>
-            <span style={styles.statLabel}>Views</span>
-          </div>
-          <p style={styles.statValue}>{profileViews}</p>
-         <p style={styles.statSub}>Profile views</p>
-        </div>
-        <div style={styles.statCard}>
-          <div style={styles.statTop}>
-            <div style={styles.statIconBox}><TrendingUp size={15} color="#111111" /></div>
-            <span style={styles.statLabel}>Data Room</span>
-          </div>
-          <p style={styles.statValue}>{dataRoomRequests}</p>
-          <p style={styles.statSub}>Data room requests</p>
-        </div>
+        ))}
       </div>
 
       {/* ── Quick Actions ── */}
@@ -364,22 +310,15 @@ export default function DashboardPage() {
         <button
           style={styles.actionRow}
           onClick={() => {
-            if (!profile.is_live) {
-              alert("Publish your profile first to apply for funding.");
-              return;
-            }
+            if (!profile.is_live) { alert("Publish your profile first to apply for funding."); return; }
             router.push("/dashboard/funding");
           }}
         >
           <div style={styles.actionLeft}>
-            <div style={styles.actionIcon}>
-              <Lightbulb size={16} color="#111111" />
-            </div>
+            <div style={styles.actionIcon}><Lightbulb size={16} color="#111111" /></div>
             <div>
               <p style={styles.actionTitle}>Apply for Funding</p>
-              <p style={styles.actionSub}>
-                {profile.is_live ? "Submit your startup for review" : "Publish your profile first"}
-              </p>
+              <p style={styles.actionSub}>{profile.is_live ? "Submit your startup for review" : "Publish your profile first"}</p>
             </div>
           </div>
           <ArrowRight size={14} color="#cccccc" />
@@ -393,9 +332,7 @@ export default function DashboardPage() {
           <div style={styles.waitlistEmpty}>
             <AlertCircle size={32} color="#e5e5e5" />
             <p style={styles.waitlistEmptyTitle}>No one here yet</p>
-            <p style={styles.waitlistEmptyText}>
-              Share your profile link and watch your waitlist grow.
-            </p>
+            <p style={styles.waitlistEmptyText}>Share your profile link and watch your waitlist grow.</p>
           </div>
         ) : (
           <>
@@ -404,35 +341,23 @@ export default function DashboardPage() {
                 {waitlistCount} {waitlistCount === 1 ? "person" : "people"} waiting
               </p>
               <div style={styles.waitlistBar}>
-                <div style={{
-                  ...styles.waitlistBarFill,
-                  width: `${Math.min(waitlistCount * 3, 100)}%`,
-                }} />
+                <div style={{ ...styles.waitlistBarFill, width: `${Math.min(waitlistCount * 3, 100)}%` }} />
               </div>
             </div>
             {waitlist.map((entry) => (
               <div key={entry.id} style={styles.waitlistEntry}>
                 <div style={styles.waitlistAvatar}>
-                  <span style={styles.waitlistAvatarText}>
-                    {entry.email[0].toUpperCase()}
-                  </span>
+                  <span style={styles.waitlistAvatarText}>{entry.email[0].toUpperCase()}</span>
                 </div>
                 <div style={styles.waitlistEntryInfo}>
                   <p style={styles.waitlistEntryEmail}>{entry.email}</p>
-                  {entry.name && (
-                    <p style={styles.waitlistEntryName}>{entry.name}</p>
-                  )}
+                  {entry.name && <p style={styles.waitlistEntryName}>{entry.name}</p>}
                 </div>
-                <span style={styles.waitlistEntryTime}>
-                  {timeAgo(entry.created_at)}
-                </span>
+                <span style={styles.waitlistEntryTime}>{timeAgo(entry.created_at)}</span>
               </div>
             ))}
             {waitlistCount > 5 && (
-              <button
-                style={styles.viewAllBtn}
-                onClick={() => router.push("/dashboard/waitlist")}
-              >
+              <button style={styles.viewAllBtn} onClick={() => router.push("/dashboard/waitlist")}>
                 View all {waitlistCount} →
               </button>
             )}
@@ -444,403 +369,65 @@ export default function DashboardPage() {
   );
 }
 
-// ── Styles ─────────────────────────────────────────────────────────────────
-
-type Styles = {
-  [key: string]: React.CSSProperties;
-};
+type Styles = { [key: string]: React.CSSProperties };
 
 const styles: Styles = {
-  page: {
-    padding: "24px",
-    maxWidth: "760px",
-    margin: "0 auto",
-  },
-  loadingPage: {
-    minHeight: "100vh",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  loadingDot: {
-    width: "8px",
-    height: "8px",
-    borderRadius: "50%",
-    backgroundColor: "#cccccc",
-  },
-  profileCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: "14px",
-    padding: "18px 20px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    border: "1px solid #f0f0f0",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-    marginBottom: "10px",
-    gap: "12px",
-    flexWrap: "wrap",
-  },
-  profileCardLeft: {
-    display: "flex",
-    alignItems: "center",
-    gap: "14px",
-  },
-  profileAvatar: {
-    width: "48px",
-    height: "48px",
-    borderRadius: "12px",
-    backgroundColor: "#111111",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-    flexShrink: 0,
-  },
-  profileAvatarImg: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-  },
-  profileAvatarText: {
-    fontSize: "16px",
-    fontWeight: "700",
-    color: "#ffffff",
-  },
-  profileNameRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    marginBottom: "3px",
-    flexWrap: "wrap",
-  },
-  profileName: {
-    fontSize: "17px",
-    fontWeight: "700",
-    color: "#111111",
-    margin: "0",
-  },
-  statusBadge: {
-    display: "flex",
-    alignItems: "center",
-    gap: "5px",
-    padding: "3px 9px",
-    borderRadius: "99px",
-    fontSize: "11px",
-    fontWeight: "600",
-  },
-  statusLive: {
-    backgroundColor: "#f0fff4",
-    color: "#38a169",
-    border: "1px solid #c6f6d5",
-  },
-  statusDraft: {
-    backgroundColor: "#f5f5f5",
-    color: "#aaaaaa",
-    border: "1px solid #eeeeee",
-  },
-  statusDot: {
-    width: "6px",
-    height: "6px",
-    borderRadius: "50%",
-  },
-  profileTagline: {
-    fontSize: "12px",
-    color: "#999999",
-    margin: "0",
-  },
-  editProfileBtn: {
-    display: "flex",
-    alignItems: "center",
-    gap: "6px",
-    padding: "7px 14px",
-    fontSize: "12px",
-    fontWeight: "500",
-    color: "#111111",
-    backgroundColor: "#f5f5f5",
-    border: "1px solid #eeeeee",
-    borderRadius: "8px",
-    cursor: "pointer",
-    flexShrink: 0,
-  },
-  linkRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#ffffff",
-    borderRadius: "10px",
-    padding: "12px 16px",
-    border: "1px solid #f0f0f0",
-    marginBottom: "20px",
-    flexWrap: "wrap",
-    gap: "10px",
-  },
-  linkLeft: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-  },
-  linkText: {
-    fontSize: "13px",
-    fontWeight: "500",
-  },
-  linkRight: {
-    display: "flex",
-    gap: "8px",
-    alignItems: "center",
-  },
-  copyBtn: {
-    display: "flex",
-    alignItems: "center",
-    gap: "5px",
-    padding: "6px 12px",
-    fontSize: "12px",
-    fontWeight: "500",
-    color: "#111111",
-    backgroundColor: "#ffffff",
-    border: "1px solid #e5e5e5",
-    borderRadius: "7px",
-    cursor: "pointer",
-  },
-  visitBtn: {
-    display: "flex",
-    alignItems: "center",
-    gap: "5px",
-    padding: "6px 12px",
-    fontSize: "12px",
-    fontWeight: "500",
-    color: "#111111",
-    backgroundColor: "#ffffff",
-    border: "1px solid #e5e5e5",
-    borderRadius: "7px",
-    textDecoration: "none",
-  },
-  goLiveBtn: {
-    display: "flex",
-    alignItems: "center",
-    gap: "6px",
-    padding: "7px 14px",
-    fontSize: "12px",
-    fontWeight: "600",
-    color: "#ffffff",
-    backgroundColor: "#111111",
-    border: "none",
-    borderRadius: "7px",
-    cursor: "pointer",
-  },
-  statsRow: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: "12px",
-    marginBottom: "24px",
-  },
-  statCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: "14px",
-    padding: "18px",
-    border: "1px solid #f0f0f0",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-  },
-  statTop: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    marginBottom: "10px",
-  },
-  statIconBox: {
-    width: "30px",
-    height: "30px",
-    borderRadius: "8px",
-    backgroundColor: "#f5f5f5",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  statLabel: {
-    fontSize: "11px",
-    fontWeight: "500",
-    color: "#999999",
-  },
-  statValue: {
-    fontSize: "26px",
-    fontWeight: "700",
-    color: "#111111",
-    margin: "0 0 2px 0",
-  },
-  statSub: {
-    fontSize: "11px",
-    color: "#cccccc",
-    margin: "0",
-  },
-  sectionLabel: {
-    fontSize: "11px",
-    fontWeight: "600",
-    color: "#aaaaaa",
-    textTransform: "uppercase",
-    letterSpacing: "0.08em",
-    marginBottom: "10px",
-  },
-  actionsCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: "14px",
-    border: "1px solid #f0f0f0",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-    overflow: "hidden",
-    marginBottom: "24px",
-  },
-  actionRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "15px 18px",
-    backgroundColor: "#ffffff",
-    border: "none",
-    cursor: "pointer",
-    width: "100%",
-    textAlign: "left",
-  },
-  actionLeft: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-  },
-  actionIcon: {
-    width: "36px",
-    height: "36px",
-    borderRadius: "9px",
-    backgroundColor: "#f0f0f0",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  actionTitle: {
-    fontSize: "13px",
-    fontWeight: "600",
-    color: "#111111",
-    margin: "0 0 2px 0",
-  },
-  actionSub: {
-    fontSize: "11px",
-    color: "#aaaaaa",
-    margin: "0",
-  },
-  actionDivider: {
-    height: "1px",
-    backgroundColor: "#f5f5f5",
-    margin: "0 18px",
-  },
-  soonTag: {
-    fontSize: "10px",
-    fontWeight: "600",
-    color: "#bbbbbb",
-    backgroundColor: "#f0f0f0",
-    padding: "3px 8px",
-    borderRadius: "99px",
-  },
-  waitlistCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: "14px",
-    border: "1px solid #f0f0f0",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-    overflow: "hidden",
-    marginBottom: "40px",
-  },
-  waitlistEmpty: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    padding: "48px 24px",
-    textAlign: "center",
-    gap: "8px",
-  },
-  waitlistEmptyTitle: {
-    fontSize: "14px",
-    fontWeight: "600",
-    color: "#cccccc",
-    margin: "4px 0 0 0",
-  },
-  waitlistEmptyText: {
-    fontSize: "12px",
-    color: "#dddddd",
-    margin: "0",
-    lineHeight: "1.6",
-    maxWidth: "220px",
-  },
-  waitlistHeader: {
-    padding: "16px 18px 12px 18px",
-    borderBottom: "1px solid #f5f5f5",
-  },
-  waitlistHeaderTitle: {
-    fontSize: "13px",
-    fontWeight: "600",
-    color: "#111111",
-    margin: "0 0 10px 0",
-  },
-  waitlistBar: {
-    width: "100%",
-    height: "4px",
-    backgroundColor: "#f0f0f0",
-    borderRadius: "99px",
-    overflow: "hidden",
-  },
-  waitlistBarFill: {
-    height: "100%",
-    backgroundColor: "#111111",
-    borderRadius: "99px",
-    transition: "width 0.6s ease",
-  },
-  waitlistEntry: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    padding: "13px 18px",
-    borderBottom: "1px solid #f9f9f9",
-  },
-  waitlistAvatar: {
-    width: "32px",
-    height: "32px",
-    borderRadius: "50%",
-    backgroundColor: "#f0f0f0",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  waitlistAvatarText: {
-    fontSize: "13px",
-    fontWeight: "600",
-    color: "#888888",
-  },
-  waitlistEntryInfo: {
-    flex: 1,
-  },
-  waitlistEntryEmail: {
-    fontSize: "13px",
-    fontWeight: "500",
-    color: "#111111",
-    margin: "0",
-  },
-  waitlistEntryName: {
-    fontSize: "11px",
-    color: "#aaaaaa",
-    margin: "2px 0 0 0",
-  },
-  waitlistEntryTime: {
-    fontSize: "11px",
-    color: "#cccccc",
-    flexShrink: 0,
-  },
-  viewAllBtn: {
-    width: "100%",
-    padding: "14px",
-    fontSize: "13px",
-    fontWeight: "500",
-    color: "#888888",
-    backgroundColor: "#fafafa",
-    border: "none",
-    borderTop: "1px solid #f5f5f5",
-    cursor: "pointer",
-    textAlign: "center",
-  },
+  page: { padding: "24px", maxWidth: "760px", margin: "0 auto" },
+  loadingPage: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" },
+  loadingDot: { width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#cccccc" },
+  profileCard: { backgroundColor: "#ffffff", borderRadius: "14px", padding: "18px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", border: "1px solid #f0f0f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", marginBottom: "10px", gap: "12px", flexWrap: "wrap" },
+  profileCardLeft: { display: "flex", alignItems: "center", gap: "14px" },
+  profileAvatar: { width: "48px", height: "48px", borderRadius: "12px", backgroundColor: "#111111", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 },
+  profileAvatarImg: { width: "100%", height: "100%", objectFit: "cover" },
+  profileAvatarText: { fontSize: "16px", fontWeight: "700", color: "#ffffff" },
+  profileNameRow: { display: "flex", alignItems: "center", gap: "8px", marginBottom: "3px", flexWrap: "wrap" },
+  profileName: { fontSize: "17px", fontWeight: "700", color: "#111111", margin: "0" },
+  statusBadge: { display: "flex", alignItems: "center", gap: "5px", padding: "3px 9px", borderRadius: "99px", fontSize: "11px", fontWeight: "600" },
+  statusLive: { backgroundColor: "#f0fff4", color: "#38a169", border: "1px solid #c6f6d5" },
+  statusDraft: { backgroundColor: "#f5f5f5", color: "#aaaaaa", border: "1px solid #eeeeee" },
+  statusDot: { width: "6px", height: "6px", borderRadius: "50%" },
+  profileTagline: { fontSize: "12px", color: "#999999", margin: "0" },
+  editProfileBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", fontSize: "12px", fontWeight: "500", color: "#111111", backgroundColor: "#f5f5f5", border: "1px solid #eeeeee", borderRadius: "8px", cursor: "pointer", flexShrink: 0 },
+  linkRow: { display: "flex", alignItems: "center", justifyContent: "space-between", backgroundColor: "#ffffff", borderRadius: "10px", padding: "12px 16px", border: "1px solid #f0f0f0", marginBottom: "20px", flexWrap: "wrap", gap: "10px" },
+  linkLeft: { display: "flex", alignItems: "center", gap: "8px" },
+  linkText: { fontSize: "13px", fontWeight: "500" },
+  linkRight: { display: "flex", gap: "8px", alignItems: "center" },
+  copyBtn: { display: "flex", alignItems: "center", gap: "5px", padding: "6px 12px", fontSize: "12px", fontWeight: "500", color: "#111111", backgroundColor: "#ffffff", border: "1px solid #e5e5e5", borderRadius: "7px", cursor: "pointer" },
+  visitBtn: { display: "flex", alignItems: "center", gap: "5px", padding: "6px 12px", fontSize: "12px", fontWeight: "500", color: "#111111", backgroundColor: "#ffffff", border: "1px solid #e5e5e5", borderRadius: "7px", textDecoration: "none" },
+  goLiveBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", fontSize: "12px", fontWeight: "600", color: "#ffffff", backgroundColor: "#111111", border: "none", borderRadius: "7px", cursor: "pointer" },
+  statsRow: { display: "grid", gap: "12px", marginBottom: "24px" },
+  statCard: { backgroundColor: "#ffffff", borderRadius: "14px", padding: "18px", border: "1px solid #f0f0f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" },
+  statCardMobile: { backgroundColor: "#ffffff", borderRadius: "12px", padding: "14px 16px", border: "1px solid #f0f0f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" },
+  statCardMobileInner: { display: "flex", alignItems: "center", gap: "12px" },
+  statMobileInfo: { flex: 1, display: "flex", flexDirection: "column", gap: "2px" },
+  statValueMobile: { fontSize: "22px", fontWeight: "700", color: "#111111", flexShrink: 0 },
+  statTop: { display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" },
+  statIconBox: { width: "30px", height: "30px", borderRadius: "8px", backgroundColor: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  statLabel: { fontSize: "11px", fontWeight: "500", color: "#999999" },
+  statValue: { fontSize: "26px", fontWeight: "700", color: "#111111", margin: "0 0 2px 0" },
+  statSub: { fontSize: "11px", color: "#cccccc", margin: "0" },
+  sectionLabel: { fontSize: "11px", fontWeight: "600", color: "#aaaaaa", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px" },
+  actionsCard: { backgroundColor: "#ffffff", borderRadius: "14px", border: "1px solid #f0f0f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", overflow: "hidden", marginBottom: "24px" },
+  actionRow: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "15px 18px", backgroundColor: "#ffffff", border: "none", cursor: "pointer", width: "100%", textAlign: "left" },
+  actionLeft: { display: "flex", alignItems: "center", gap: "12px" },
+  actionIcon: { width: "36px", height: "36px", borderRadius: "9px", backgroundColor: "#f0f0f0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  actionTitle: { fontSize: "13px", fontWeight: "600", color: "#111111", margin: "0 0 2px 0" },
+  actionSub: { fontSize: "11px", color: "#aaaaaa", margin: "0" },
+  actionDivider: { height: "1px", backgroundColor: "#f5f5f5", margin: "0 18px" },
+  waitlistCard: { backgroundColor: "#ffffff", borderRadius: "14px", border: "1px solid #f0f0f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", overflow: "hidden", marginBottom: "40px" },
+  waitlistEmpty: { display: "flex", flexDirection: "column", alignItems: "center", padding: "48px 24px", textAlign: "center", gap: "8px" },
+  waitlistEmptyTitle: { fontSize: "14px", fontWeight: "600", color: "#cccccc", margin: "4px 0 0 0" },
+  waitlistEmptyText: { fontSize: "12px", color: "#dddddd", margin: "0", lineHeight: "1.6", maxWidth: "220px" },
+  waitlistHeader: { padding: "16px 18px 12px 18px", borderBottom: "1px solid #f5f5f5" },
+  waitlistHeaderTitle: { fontSize: "13px", fontWeight: "600", color: "#111111", margin: "0 0 10px 0" },
+  waitlistBar: { width: "100%", height: "4px", backgroundColor: "#f0f0f0", borderRadius: "99px", overflow: "hidden" },
+  waitlistBarFill: { height: "100%", backgroundColor: "#111111", borderRadius: "99px", transition: "width 0.6s ease" },
+  waitlistEntry: { display: "flex", alignItems: "center", gap: "12px", padding: "13px 18px", borderBottom: "1px solid #f9f9f9" },
+  waitlistAvatar: { width: "32px", height: "32px", borderRadius: "50%", backgroundColor: "#f0f0f0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  waitlistAvatarText: { fontSize: "13px", fontWeight: "600", color: "#888888" },
+  waitlistEntryInfo: { flex: 1 },
+  waitlistEntryEmail: { fontSize: "13px", fontWeight: "500", color: "#111111", margin: "0" },
+  waitlistEntryName: { fontSize: "11px", color: "#aaaaaa", margin: "2px 0 0 0" },
+  waitlistEntryTime: { fontSize: "11px", color: "#cccccc", flexShrink: 0 },
+  viewAllBtn: { width: "100%", padding: "14px", fontSize: "13px", fontWeight: "500", color: "#888888", backgroundColor: "#fafafa", border: "none", borderTop: "1px solid #f5f5f5", cursor: "pointer", textAlign: "center" },
 };
