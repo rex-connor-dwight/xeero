@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 import { useRouter, usePathname } from "next/navigation";
 import { useXeero } from "@/lib/context";
 import {
@@ -16,9 +17,8 @@ import {
   Heart,
   Rocket,
   LogOut,
+  Crown,
 } from "lucide-react";
-
-// ── Types ──────────────────────────────────────────────────────────────────
 
 type NavItem = {
   label: string;
@@ -26,33 +26,47 @@ type NavItem = {
   path: string;
 };
 
-// ── Nav Items ──────────────────────────────────────────────────────────────
-
 const navItems: NavItem[] = [
   { label: "Dashboard", icon: <LayoutDashboard size={18} />, path: "/dashboard" },
   { label: "My Profile", icon: <User size={18} />, path: "/dashboard/edit" },
+  { label: "Team", icon: <Users size={18} />, path: "/dashboard/team" },
   { label: "Waitlist", icon: <Users size={18} />, path: "/dashboard/waitlist" },
   { label: "Validate", icon: <Lightbulb size={18} />, path: "/dashboard/validate" },
   { label: "Data Room", icon: <FolderLock size={18} />, path: "/dashboard/dataroom" },
   { label: "Notifications", icon: <Bell size={18} />, path: "/dashboard/notifications" },
   { label: "Supporters", icon: <Heart size={18} />, path: "/dashboard/supporters" },
   { label: "Funding", icon: <Rocket size={18} />, path: "/dashboard/funding" },
+  { label: "Services", icon: <Crown size={18} />, path: "/dashboard/services" },
 ];
-
-// ── Component ──────────────────────────────────────────────────────────────
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, profile, loading, signOut } = useXeero();
+  const { user, profile, loading, signOut, isTeamMember } = useXeero();
   const [islandOpen, setIslandOpen] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     if (!loading && !user) {
       router.push("/auth");
+      return;
     }
-  }, [loading, user]);
+    // Redirect team members to their own dashboard
+    if (!loading && user && isTeamMember) {
+      router.push("/team-dashboard");
+    }
+  }, [loading, user, isTeamMember]);
+
+  useEffect(() => {
+    if (!profile) return;
+    supabase
+      .from("notifications")
+      .select("id", { count: "exact" })
+      .eq("profile_id", profile.id)
+      .eq("read", false)
+      .then(({ count }) => setUnreadCount(count || 0));
+  }, [profile]);
 
   const handleNav = (path: string) => {
     router.push(path);
@@ -77,7 +91,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  if (!user) return null;
+  if (!user || isTeamMember) return null;
 
   return (
     <div style={styles.root}>
@@ -99,10 +113,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             Add Startup
           </button>
           <button
-            style={styles.topBarIconBtn}
-            onClick={() => router.push("/dashboard/notifications")}
+            style={{ ...styles.topBarIconBtn, position: "relative" }}
+            onClick={() => { router.push("/dashboard/notifications"); setUnreadCount(0); }}
           >
             <Bell size={16} color="rgba(255,255,255,0.7)" />
+            {unreadCount > 0 && (
+              <span style={{
+                position: "absolute",
+                top: "-4px",
+                right: "-4px",
+                width: "16px",
+                height: "16px",
+                borderRadius: "50%",
+                backgroundColor: "#e53e3e",
+                fontSize: "9px",
+                fontWeight: "700",
+                color: "#ffffff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "2px solid #111111",
+              }}>
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
           </button>
           <div style={{ position: "relative" }}>
             <button
@@ -174,18 +208,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               ))}
             </nav>
           </div>
-
-          {/* <div style={styles.sidebarBottom}>
-            <button
-              style={styles.navItem}
-              onClick={() => router.push("/dashboard/settings")}
-            >
-              <span style={styles.navIcon}>
-                <Settings size={18} color="#aaaaaa" />
-              </span>
-              <span style={styles.navLabel}>Settings</span>
-            </button>
-          </div> */}
         </div>
 
         {/* ── Main Content ── */}
@@ -256,8 +278,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     </div>
   );
 }
-
-// ── Styles ─────────────────────────────────────────────────────────────────
 
 type Styles = { [key: string]: React.CSSProperties };
 

@@ -1,459 +1,36 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
 import {
-  Target,
-  Lightbulb,
-  TrendingUp,
-  DollarSign,
-  Rocket,
   Globe,
   MapPin,
   Users,
   Calendar,
   Lock,
   FileText,
-  Briefcase,
-  GraduationCap,
-  Award,
-  Layers,
   Send,
-  FolderOpen,
   CheckCircle,
   Clock,
   Heart,
 } from "lucide-react";
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-type Profile = {
-  id: string;
-  startup_name: string;
-  tagline: string;
-  problem: string;
-  solution: string;
-  stage: string;
-  industry: string;
-  business_model: string;
-  traction: string;
-  location: string;
-  website: string;
-  year_founded: string;
-  team_size: string;
-  funding_goal: string;
-  funding_stage: string;
-  logo_url: string;
-  deck_url: string;
-  founder_name: string;
-  founder_role: string;
-  founder_bio: string;
-  founder_linkedin: string;
-  founder_twitter: string;
-  founder_photo_url: string;
-  founder_achievements: string;
-  founder_previous_startups: string;
-  founder_skills: string;
-  founder_experience: {
-    id: string;
-    role: string;
-    company: string;
-    year_start: string;
-    year_end: string;
-  }[];
-  founder_education: {
-    id: string;
-    degree: string;
-    school: string;
-    year: string;
-  }[];
-  slug: string;
-  is_live: boolean;
-  validation_score: number | null;
-  validation_band: string | null;
-  validation_answers: any | null;
-  subaccount_code: string | null;
-};
-
-type Tab = "overview" | "founder" | "deck" | "dataroom";
-type DrAccess = "none" | "loading" | "granted" | "expired";
-
-type DataRoomDoc = {
-  id: string;
-  section: string;
-  doc_type: string;
-  title: string;
-  file_url?: string;
-  content_json?: any;
-  status: string;
-};
-
-// ── Logic ──────────────────────────────────────────────────────────────────
-
-function getInitials(name: string) {
-  if (!name) return "X";
-  return name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
-}
-
-function getSkillsArray(skills: string) {
-  if (!skills) return [];
-  return skills.split(",").map((s) => s.trim()).filter(Boolean);
-}
-
-async function fetchProfileBySlug(slug: string) {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("slug", slug)
-    .single();
-  if (error) return null;
-  if (data && data.is_live) {
-    supabase.from("profile_views").insert({ profile_id: data.id });
-  }
-  return data as Profile;
-}
-
-async function getDeckSignedUrl(path: string) {
-  const { data, error } = await supabase.storage
-    .from("decks")
-    .createSignedUrl(path, 3600);
-  if (error) return null;
-  return data.signedUrl;
-}
-
-async function submitWaitlist(profileId: string, email: string, name: string) {
-  const { error } = await supabase
-    .from("waitlist")
-    .insert({ profile_id: profileId, email, name });
-  return error;
-}
-
-async function submitDataRoomRequest(profileId: string, name: string, email: string, note: string) {
-  const { error } = await supabase
-    .from("data_room_requests")
-    .insert({ profile_id: profileId, investor_name: name, investor_email: email, note });
-  return error;
-}
-
-async function verifyToken(token: string, profileId: string): Promise<DrAccess> {
-  const { data, error } = await supabase
-    .from("data_room_requests")
-    .select("status, token_expires_at")
-    .eq("access_token", token)
-    .eq("profile_id", profileId)
-    .eq("status", "approved")
-    .single();
-  if (error || !data) return "none";
-  if (new Date(data.token_expires_at) < new Date()) return "expired";
-  return "granted";
-}
-
-async function fetchDataRoomDocs(profileId: string): Promise<DataRoomDoc[]> {
-  const { data } = await supabase
-    .from("data_room_documents")
-    .select("*")
-    .eq("profile_id", profileId)
-    .eq("status", "complete");
-  return data || [];
-}
-
-// ── Sub Components ─────────────────────────────────────────────────────────
-
-function LinkedInIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
-      <rect x="2" y="9" width="4" height="12" />
-      <circle cx="4" cy="4" r="2" />
-    </svg>
-  );
-}
-
-function XIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-    </svg>
-  );
-}
-
-function CoverPattern() {
-  return (
-    <svg
-      style={styles.coverSvg}
-      viewBox="0 0 800 220"
-      xmlns="http://www.w3.org/2000/svg"
-      preserveAspectRatio="xMidYMid slice"
-    >
-      <line x1="400" y1="300" x2="-100" y2="-50" stroke="white" strokeWidth="0.5" strokeOpacity="0.08" />
-      <line x1="400" y1="300" x2="0" y2="-80" stroke="white" strokeWidth="0.5" strokeOpacity="0.08" />
-      <line x1="400" y1="300" x2="100" y2="-100" stroke="white" strokeWidth="0.5" strokeOpacity="0.08" />
-      <line x1="400" y1="300" x2="200" y2="-110" stroke="white" strokeWidth="0.5" strokeOpacity="0.08" />
-      <line x1="400" y1="300" x2="300" y2="-115" stroke="white" strokeWidth="0.5" strokeOpacity="0.08" />
-      <line x1="400" y1="300" x2="400" y2="-120" stroke="white" strokeWidth="0.5" strokeOpacity="0.08" />
-      <line x1="400" y1="300" x2="500" y2="-115" stroke="white" strokeWidth="0.5" strokeOpacity="0.08" />
-      <line x1="400" y1="300" x2="600" y2="-110" stroke="white" strokeWidth="0.5" strokeOpacity="0.08" />
-      <line x1="400" y1="300" x2="700" y2="-100" stroke="white" strokeWidth="0.5" strokeOpacity="0.08" />
-      <line x1="400" y1="300" x2="800" y2="-80" stroke="white" strokeWidth="0.5" strokeOpacity="0.08" />
-      <line x1="400" y1="300" x2="900" y2="-50" stroke="white" strokeWidth="0.5" strokeOpacity="0.08" />
-      <ellipse cx="400" cy="320" rx="380" ry="200" fill="none" stroke="white" strokeWidth="0.5" strokeOpacity="0.06" />
-      <ellipse cx="400" cy="320" rx="300" ry="160" fill="none" stroke="white" strokeWidth="0.5" strokeOpacity="0.05" />
-      <ellipse cx="400" cy="320" rx="200" ry="110" fill="none" stroke="white" strokeWidth="0.5" strokeOpacity="0.04" />
-    </svg>
-  );
-}
-
-type InfoCardProps = {
-  label: string;
-  icon: React.ReactNode;
-  value?: string;
-  placeholder?: string;
-  fullWidth?: boolean;
-};
-
-function InfoCard({ label, icon, value, placeholder, fullWidth }: InfoCardProps) {
-  const isEmpty = !value;
-  return (
-    <div style={{
-      ...styles.infoCard,
-      ...(fullWidth ? styles.infoCardFull : {}),
-      ...(isEmpty ? styles.infoCardEmpty : {}),
-    }}>
-      <div style={styles.infoCardTop}>
-        <div style={styles.infoCardIconWrapper}>{icon}</div>
-        <span style={styles.infoCardCapsule}>{label}</span>
-      </div>
-      <p style={{ ...styles.infoCardValue, ...(isEmpty ? styles.infoCardValueEmpty : {}) }}>
-        {isEmpty ? (placeholder || "Not added yet") : value}
-      </p>
-    </div>
-  );
-}
-
-function ValidationScoreCard({ score, band }: { score: number; band: string | null }) {
-  const color = score >= 70 ? "#38a169" : score >= 40 ? "#d69e2e" : "#e53e3e";
-  const bgColor = score >= 70 ? "#f0fff4" : score >= 40 ? "#fffbeb" : "#fff5f5";
-  const borderColor = score >= 70 ? "#c6f6d5" : score >= 40 ? "#fef08a" : "#fed7d7";
-  return (
-    <div style={{ ...styles.validationCard, backgroundColor: bgColor, border: `1px solid ${borderColor}` }}>
-      <div style={styles.validationCardTop}>
-        <div>
-          <p style={{ ...styles.validationBand, color }}>{band || "Validated"}</p>
-          <p style={{ ...styles.validationSubtext, color }}>{score}/100 — Xeero Validation Score</p>
-        </div>
-      </div>
-      <div style={styles.validationBar}>
-        <div style={{ ...styles.validationBarFill, width: `${score}%`, backgroundColor: color }} />
-      </div>
-      <p style={styles.validationNote}>
-        This score reflects how thoroughly the founder validated their idea before building.
-      </p>
-    </div>
-  );
-}
-
-// ── Doc Modal ──────────────────────────────────────────────────────────────
-
-function DocModal({ doc, onClose }: { doc: DataRoomDoc; onClose: () => void }) {
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = ""; };
-  }, []);
-
-  const renderContent = () => {
-    if (doc.file_url) {
-      return (
-        <iframe
-          src={doc.file_url}
-          style={{ width: "100%", height: "100%", border: "none" }}
-          title={doc.title}
-        />
-      );
-    }
-
-    if (doc.content_json) {
-      const content = doc.content_json;
-
-      if (doc.doc_type === "cap_table" && content.rows) {
-        return (
-          <div style={modalStyles.builtContent}>
-            <h3 style={modalStyles.builtTitle}>{doc.title}</h3>
-            <div style={modalStyles.tableWrapper}>
-              <div style={modalStyles.tableHeader}>
-                <span style={modalStyles.tableCell}>Name</span>
-                <span style={modalStyles.tableCell}>Role</span>
-                <span style={modalStyles.tableCell}>Shares</span>
-                <span style={modalStyles.tableCell}>%</span>
-              </div>
-              {content.rows.map((row: any, i: number) => (
-                <div key={i} style={modalStyles.tableRow}>
-                  <span style={modalStyles.tableCell}>{row.name || "—"}</span>
-                  <span style={modalStyles.tableCell}>{row.role || "—"}</span>
-                  <span style={modalStyles.tableCell}>{row.shares || "—"}</span>
-                  <span style={modalStyles.tableCell}>{row.percent ? `${row.percent}%` : "—"}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      }
-
-      if (doc.doc_type === "metrics") {
-        const fields = [
-          { key: "dau", label: "Daily Active Users" },
-          { key: "mau", label: "Monthly Active Users" },
-          { key: "retention", label: "Retention Rate" },
-          { key: "churn", label: "Churn Rate" },
-          { key: "nps", label: "NPS Score" },
-          { key: "other", label: "Other Metric" },
-        ];
-        return (
-          <div style={modalStyles.builtContent}>
-            <h3 style={modalStyles.builtTitle}>{doc.title}</h3>
-            <div style={modalStyles.metricsGrid}>
-              {fields.filter((f) => content[f.key]).map((f) => (
-                <div key={f.key} style={modalStyles.metricCard}>
-                  <p style={modalStyles.metricLabel}>{f.label}</p>
-                  <p style={modalStyles.metricValue}>{content[f.key]}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      }
-
-      return (
-        <div style={modalStyles.builtContent}>
-          <h3 style={modalStyles.builtTitle}>{doc.title}</h3>
-          {Object.entries(content).map(([key, value]) => {
-            if (!value || typeof value !== "string") return null;
-            const label = key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
-            return (
-              <div key={key} style={modalStyles.fieldRow}>
-                <p style={modalStyles.fieldLabel}>{label}</p>
-                <p style={modalStyles.fieldValue}>{value as string}</p>
-              </div>
-            );
-          })}
-        </div>
-      );
-    }
-
-    return null;
-  };
-
-  return (
-    <div style={modalStyles.overlay} onClick={onClose}>
-      <div style={modalStyles.modal} onClick={(e) => e.stopPropagation()}>
-        <div style={modalStyles.modalHeader}>
-          <span style={modalStyles.modalTitle}>{doc.title}</span>
-          <button style={modalStyles.closeBtn} onClick={onClose}>✕</button>
-        </div>
-        <div style={modalStyles.modalBody}>
-          {renderContent()}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-type ModalStyles = { [key: string]: React.CSSProperties };
-const modalStyles: ModalStyles = {
-  overlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" },
-  modal: { backgroundColor: "#ffffff", borderRadius: "16px", width: "100%", maxWidth: "720px", height: "80vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.3)", overflow: "hidden" },
-  modalHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid #f0f0f0", flexShrink: 0 },
-  modalTitle: { fontSize: "14px", fontWeight: "600", color: "#111111" },
-  closeBtn: { fontSize: "14px", color: "#888888", background: "none", border: "none", cursor: "pointer", padding: "4px 8px" },
-  modalBody: { flex: 1, overflow: "auto", minHeight: 0, height: "100%" },
-  builtContent: { padding: "24px", display: "flex", flexDirection: "column", gap: "20px" },
-  builtTitle: { fontSize: "16px", fontWeight: "700", color: "#111111", margin: "0" },
-  fieldRow: { borderBottom: "1px solid #f5f5f5", paddingBottom: "16px" },
-  fieldLabel: { fontSize: "11px", fontWeight: "600", color: "#aaaaaa", textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 6px 0" },
-  fieldValue: { fontSize: "14px", color: "#333333", lineHeight: "1.7", margin: "0", whiteSpace: "pre-wrap" },
-  tableWrapper: { border: "1px solid #f0f0f0", borderRadius: "8px", overflow: "hidden" },
-  tableHeader: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr 80px", gap: "8px", padding: "10px 14px", backgroundColor: "#f9f9f9", borderBottom: "1px solid #f0f0f0" },
-  tableRow: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr 80px", gap: "8px", padding: "10px 14px", borderBottom: "1px solid #f9f9f9" },
-  tableCell: { fontSize: "13px", color: "#333333" },
-  metricsGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px" },
-  metricCard: { backgroundColor: "#f9f9f9", borderRadius: "10px", padding: "16px", border: "1px solid #f0f0f0" },
-  metricLabel: { fontSize: "11px", fontWeight: "600", color: "#aaaaaa", textTransform: "uppercase", letterSpacing: "0.07em", margin: "0 0 6px 0" },
-  metricValue: { fontSize: "22px", fontWeight: "700", color: "#111111", margin: "0" },
-};
-
-// ── Data Room Viewer ───────────────────────────────────────────────────────
-
-function DataRoomViewer({ profileId, startupName }: { profileId: string; startupName: string }) {
-  const [docs, setDocs] = useState<DataRoomDoc[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeDoc, setActiveDoc] = useState<DataRoomDoc | null>(null);
-
-  useEffect(() => {
-    fetchDataRoomDocs(profileId).then((data) => {
-      setDocs(data);
-      setLoading(false);
-    });
-  }, [profileId]);
-
-  const sections = [
-    { key: "company_overview", label: "Company Overview" },
-    { key: "legal", label: "Legal & Corporate" },
-    { key: "financials", label: "Financials" },
-    { key: "traction", label: "Product & Traction" },
-    { key: "team", label: "Team" },
-  ];
-
-  if (loading) return <div style={styles.drLoading}><div style={styles.loadingDot} /></div>;
-
-  return (
-    <>
-      {activeDoc && (
-        <DocModal doc={activeDoc} onClose={() => setActiveDoc(null)} />
-      )}
-      <div style={styles.drViewerWrapper}>
-        <div style={styles.drViewerHeader}>
-          <div style={styles.drViewerIconBox}>
-            <FolderOpen size={20} color="#38a169" />
-          </div>
-          <div>
-            <h3 style={styles.drViewerTitle}>Data Room Access Granted</h3>
-            <p style={styles.drViewerSub}>
-              You have approved access to {startupName}'s data room. This link expires in 24 hours.
-            </p>
-          </div>
-        </div>
-        {sections.map((section) => {
-          const sectionDocs = docs.filter((d) => d.section === section.key);
-          if (sectionDocs.length === 0) return null;
-          return (
-            <div key={section.key} style={styles.drSection}>
-              <p style={styles.drSectionLabel}>{section.label}</p>
-              {sectionDocs.map((doc) => (
-                <div key={doc.id} style={styles.drDocRow}>
-                  <div style={styles.drDocLeft}>
-                    <CheckCircle size={14} color="#38a169" />
-                    <span style={styles.drDocTitle}>{doc.title}</span>
-                  </div>
-                  <button style={styles.drDocViewBtn} onClick={() => setActiveDoc(doc)}>
-                    View
-                  </button>
-                </div>
-              ))}
-            </div>
-          );
-        })}
-        {docs.length === 0 && (
-          <div style={styles.drEmptyDocs}>
-            <p style={styles.drEmptyDocsText}>
-              The founder hasn't uploaded any documents yet. Check back soon.
-            </p>
-          </div>
-        )}
-      </div>
-    </>
-  );
-}
-
-// ── Main Export ────────────────────────────────────────────────────────────
+import {
+  fetchProfileBySlug,
+  getDeckSignedUrl,
+  submitWaitlist,
+  verifyToken,
+  submitDataRoomRequest,
+  getInitials,
+  type Profile,
+  type Tab,
+  type DrAccess,
+} from "@/lib/data/slugPage";
+import CoverPattern from "@/components/slug/CoverPattern";
+import { ValidationScoreCard } from "@/components/slug/InfoCard";
+import OverviewTab from "@/components/slug/OverviewTab";
+import TeamTab from "@/components/slug/TeamTab";
+import DeckTab from "@/components/slug/DeckTab";
+import DataRoomViewer from "@/components/slug/DataRoomViewer";
+import SupportModal from "@/components/slug/SupportModal";
 
 export default function SlugClient({
   slug,
@@ -486,22 +63,11 @@ export default function SlugClient({
   const [drError, setDrError] = useState("");
 
   const [showSupport, setShowSupport] = useState(false);
-  const [supportName, setSupportName] = useState("");
-  const [supportEmail, setSupportEmail] = useState("");
-  const [supportAmount, setSupportAmount] = useState<number | null>(null);
-  const [supportLoading, setSupportLoading] = useState(false);
-  const [supportDone, setSupportDone] = useState(false);
-  const [supportError, setSupportError] = useState("");
-  const [scriptLoaded, setScriptLoaded] = useState(false);
 
   useEffect(() => {
-    if (document.querySelector('script[src="https://js.paystack.co/v1/inline.js"]')) {
-      setScriptLoaded(true);
-      return;
-    }
+    if (document.querySelector('script[src="https://js.paystack.co/v1/inline.js"]')) return;
     const script = document.createElement("script");
     script.src = "https://js.paystack.co/v1/inline.js";
-    script.onload = () => setScriptLoaded(true);
     document.head.appendChild(script);
   }, []);
 
@@ -529,8 +95,8 @@ export default function SlugClient({
     setWaitlistLoading(true);
     setWaitlistError("");
     const error = await submitWaitlist(profile.id, waitlistEmail, waitlistName);
-    if (error) { setWaitlistError("Something went wrong. Please try again."); }
-    else { setWaitlistDone(true); }
+    if (error) setWaitlistError("Something went wrong. Please try again.");
+    else setWaitlistDone(true);
     setWaitlistLoading(false);
   };
 
@@ -558,68 +124,6 @@ export default function SlugClient({
     ).catch(() => {});
     setDrDone(true);
     setDrLoading(false);
-  };
-
-  const handleSupport = async () => {
-    if (!supportName || !supportEmail || !supportAmount || !profile) return;
-    setSupportLoading(true);
-    setSupportError("");
-
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/initialize-support`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({
-            profile_id: profile.id,
-            amount_usd: supportAmount,
-            tier: supportAmount === 0.1 ? "Test"
-              : supportAmount === 1 ? "Believer"
-              : supportAmount === 5 ? "Early Supporter"
-              : supportAmount === 10 ? "Backing You"
-              : supportAmount === 50 ? "Champion"
-              : "Lead Believer",
-            supporter_name: supportName,
-            supporter_email: supportEmail,
-            is_public: true,
-          }),
-        }
-      );
-
-      const data = await res.json();
-
-      if (!res.ok || data.error) {
-        setSupportError(data.error || "Something went wrong.");
-        setSupportLoading(false);
-        return;
-      }
-
-      setSupportLoading(false);
-
-      const handler = (window as any).PaystackPop.setup({
-        key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
-        email: supportEmail,
-        amount: data.ngn_amount * 100,
-        ref: data.reference,
-        currency: "NGN",
-        callback: () => {
-          setSupportDone(true);
-          setShowSupport(false);
-        },
-        onClose: () => {
-          setSupportLoading(false);
-        },
-      });
-      handler.openIframe();
-
-    } catch {
-      setSupportError("Something went wrong. Please try again.");
-      setSupportLoading(false);
-    }
   };
 
   if (loading) return <div style={styles.centeredPage}><div style={styles.loadingDot} /></div>;
@@ -654,20 +158,20 @@ export default function SlugClient({
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "overview", label: "Overview" },
-    { key: "founder", label: "Founder" },
+    { key: "team", label: "Team" },
     { key: "deck", label: "Deck" },
     { key: "dataroom", label: "Data Room" },
   ];
 
-  const validationColor = profile.validation_score
-    ? profile.validation_score >= 70 ? "#38a169" : profile.validation_score >= 40 ? "#d69e2e" : "#e53e3e"
-    : "#38a169";
   const validationBg = profile.validation_score
     ? profile.validation_score >= 70 ? "#f0fff4" : profile.validation_score >= 40 ? "#fffbeb" : "#fff5f5"
     : "#f0fff4";
   const validationBorder = profile.validation_score
     ? profile.validation_score >= 70 ? "#c6f6d5" : profile.validation_score >= 40 ? "#fef08a" : "#fed7d7"
     : "#c6f6d5";
+  const validationColor = profile.validation_score
+    ? profile.validation_score >= 70 ? "#38a169" : profile.validation_score >= 40 ? "#d69e2e" : "#e53e3e"
+    : "#38a169";
 
   return (
     <div style={styles.page}>
@@ -778,195 +282,11 @@ export default function SlugClient({
 
       <div style={styles.tabContent}>
 
-        {activeTab === "overview" && (
-          <div style={styles.grid}>
-            <InfoCard label="Problem" icon={<Target size={16} color="#999999" />} value={profile.problem} fullWidth />
-            <InfoCard label="Solution" icon={<Lightbulb size={16} color="#999999" />} value={profile.solution} fullWidth />
-            <InfoCard label="Traction" icon={<TrendingUp size={16} color="#999999" />} value={profile.traction} />
-            <InfoCard label="Business Model" icon={<DollarSign size={16} color="#999999" />} value={profile.business_model} />
+        {activeTab === "overview" && <OverviewTab profile={profile} />}
 
-            {(profile.funding_stage || profile.funding_goal) && (
-              <div style={{ ...styles.infoCard, ...styles.infoCardFull }}>
-                <div style={styles.infoCardTop}>
-                  <div style={styles.infoCardIconWrapper}><Rocket size={16} color="#999999" /></div>
-                  <span style={styles.infoCardCapsule}>Fundraising</span>
-                </div>
-                <div style={styles.fundraisingRow}>
-                  {profile.funding_stage && (
-                    <div style={styles.fundraisingItem}>
-                      <p style={styles.fundraisingLabel}>Stage</p>
-                      <p style={styles.fundraisingValue}>{profile.funding_stage}</p>
-                    </div>
-                  )}
-                  {profile.funding_goal && (
-                    <div style={styles.fundraisingItem}>
-                      <p style={styles.fundraisingLabel}>Raising</p>
-                      <p style={styles.fundraisingValue}>{profile.funding_goal}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+        {activeTab === "team" && <TeamTab profile={profile} />}
 
-            {profile.validation_score && (
-              <div style={{ ...styles.infoCard, ...styles.infoCardFull, backgroundColor: validationBg, border: `1px solid ${validationBorder}` }}>
-                <div style={styles.infoCardTop}>
-                  <div style={styles.infoCardIconWrapper}>
-                    <CheckCircle size={16} color={validationColor} />
-                  </div>
-                  <span style={{ ...styles.infoCardCapsule, backgroundColor: validationBg, color: validationColor }}>
-                    Validation Score
-                  </span>
-                </div>
-                <div style={styles.validationCardTop}>
-                  <div>
-                    <p style={{ ...styles.validationBand, color: validationColor }}>
-                      {profile.validation_band || "Validated"}
-                    </p>
-                    <p style={{ ...styles.validationSubtext, color: validationColor }}>
-                      {profile.validation_score}/100 — This founder validated their idea before building.
-                    </p>
-                  </div>
-                </div>
-                <div style={{ ...styles.validationBar, marginTop: "14px" }}>
-                  <div style={{ ...styles.validationBarFill, width: `${profile.validation_score}%`, backgroundColor: validationColor }} />
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === "founder" && (
-          <div style={styles.founderContent}>
-            <div style={styles.founderCard}>
-              <div style={styles.founderHeaderRow}>
-                <div style={styles.founderAvatar}>
-                  {profile.founder_photo_url
-                    ? <img src={profile.founder_photo_url} alt="founder" style={styles.founderPhoto} />
-                    : <span style={styles.founderInitials}>{getInitials(profile.founder_name)}</span>
-                  }
-                </div>
-                <div>
-                  <p style={styles.founderName}>{profile.founder_name || "Founder"}</p>
-                  <p style={styles.founderRole}>{profile.founder_role || ""}</p>
-                  <div style={styles.founderSocials}>
-                    {profile.founder_linkedin && (
-                      <a href={profile.founder_linkedin} target="_blank" rel="noopener noreferrer" style={styles.socialLink}>
-                        <LinkedInIcon />LinkedIn
-                      </a>
-                    )}
-                    {profile.founder_twitter && (
-                      <a href={profile.founder_twitter} target="_blank" rel="noopener noreferrer" style={styles.socialLink}>
-                        <XIcon />Twitter
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
-              {profile.founder_bio && (
-                <>
-                  <div style={styles.cvDivider} />
-                  <p style={styles.founderBio}>{profile.founder_bio}</p>
-                </>
-              )}
-            </div>
-
-            {profile.founder_skills && (
-              <div style={styles.founderCard}>
-                <div style={styles.cvSectionHeader}>
-                  <Layers size={15} color="#999999" />
-                  <p style={styles.cvSectionLabel}>Skills</p>
-                </div>
-                <div style={styles.skillsRow}>
-                  {getSkillsArray(profile.founder_skills).map((skill, i) => (
-                    <span key={i} style={styles.skillTag}>{skill}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {profile.founder_experience?.length > 0 && (
-              <div style={styles.founderCard}>
-                <div style={styles.cvSectionHeader}>
-                  <Briefcase size={15} color="#999999" />
-                  <p style={styles.cvSectionLabel}>Experience</p>
-                </div>
-                {profile.founder_experience.map((exp, i) => (
-                  <div key={exp.id} style={styles.cvEntry}>
-                    <div style={styles.cvEntryLeft}>
-                      <div style={styles.cvEntryDot} />
-                      {i < profile.founder_experience.length - 1 && <div style={styles.cvEntryLine} />}
-                    </div>
-                    <div style={styles.cvEntryBody}>
-                      <p style={styles.cvEntryTitle}>{exp.role}</p>
-                      <p style={styles.cvEntrySubtitle}>{exp.company}</p>
-                      <p style={styles.cvEntryDate}>{exp.year_start} — {exp.year_end}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {profile.founder_education?.length > 0 && (
-              <div style={styles.founderCard}>
-                <div style={styles.cvSectionHeader}>
-                  <GraduationCap size={15} color="#999999" />
-                  <p style={styles.cvSectionLabel}>Education</p>
-                </div>
-                {profile.founder_education.map((edu, i) => (
-                  <div key={edu.id} style={styles.cvEntry}>
-                    <div style={styles.cvEntryLeft}>
-                      <div style={styles.cvEntryDot} />
-                      {i < profile.founder_education.length - 1 && <div style={styles.cvEntryLine} />}
-                    </div>
-                    <div style={styles.cvEntryBody}>
-                      <p style={styles.cvEntryTitle}>{edu.degree}</p>
-                      <p style={styles.cvEntrySubtitle}>{edu.school}</p>
-                      <p style={styles.cvEntryDate}>{edu.year}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {profile.founder_achievements && (
-              <div style={styles.founderCard}>
-                <div style={styles.cvSectionHeader}>
-                  <Award size={15} color="#999999" />
-                  <p style={styles.cvSectionLabel}>Achievements</p>
-                </div>
-                <p style={styles.cvText}>{profile.founder_achievements}</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === "deck" && (
-          <div style={styles.deckWrapper}>
-            {deckSignedUrl ? (
-              <div style={styles.deckViewerCard}>
-                <div style={styles.deckViewerHeader}>
-                  <div style={styles.deckViewerTitleRow}>
-                    <FileText size={16} color="#111111" />
-                    <span style={styles.deckViewerTitleText}>Pitch Deck</span>
-                  </div>
-                  <a href={deckSignedUrl} target="_blank" rel="noopener noreferrer" style={styles.deckDownloadBtn}>
-                    Download PDF
-                  </a>
-                </div>
-                <div style={styles.deckIframeWrapper}>
-                  <iframe src={deckSignedUrl} style={styles.deckIframe} title="Pitch Deck" />
-                </div>
-              </div>
-            ) : (
-              <div style={styles.deckEmptyCard}>
-                <div style={styles.deckEmptyIconWrapper}><FileText size={28} color="#cccccc" /></div>
-                <h3 style={styles.deckEmptyTitle}>No deck uploaded yet</h3>
-                <p style={styles.deckEmptyText}>This startup hasn't uploaded a pitch deck yet. Check back soon.</p>
-              </div>
-            )}
-          </div>
-        )}
+        {activeTab === "deck" && <DeckTab deckSignedUrl={deckSignedUrl} />}
 
         {activeTab === "dataroom" && (
           <>
@@ -1027,7 +347,6 @@ export default function SlugClient({
         </p>
       </div>
 
-      {/* ── Floating Support Button ── */}
       {profile.subaccount_code && (
         <>
           <button style={styles.fab} onClick={() => setShowSupport(true)}>
@@ -1036,91 +355,11 @@ export default function SlugClient({
           </button>
 
           {showSupport && (
-            <div style={styles.supportOverlay} onClick={() => setShowSupport(false)}>
-              <div style={styles.supportModal} onClick={(e) => e.stopPropagation()}>
-
-                <div style={styles.supportModalHeader}>
-                  <div style={styles.supportModalTitle}>
-                    <Heart size={16} color="#38a169" />
-                    <span>Support this founder</span>
-                  </div>
-                  <button style={styles.supportCloseBtn} onClick={() => setShowSupport(false)}>✕</button>
-                </div>
-
-                {supportDone ? (
-                  <div style={styles.supportSuccess}>
-                    <CheckCircle size={28} color="#38a169" />
-                    <p style={styles.supportSuccessTitle}>Thank you for believing.</p>
-                    <p style={styles.supportSuccessText}>
-                      The founder will be in touch about early access.
-                    </p>
-                  </div>
-                ) : (
-                  <div style={styles.supportForm}>
-                    <p style={styles.supportIntro}>
-                      Support <strong>{profile.startup_name}</strong> and get early access to what they're building.
-                    </p>
-
-                    <p style={styles.supportLabel}>Choose an amount</p>
-                    <div style={styles.supportTiers}>
-                      {[
-                        { amount: 0.1, label: "Test (₦100)" },
-                        { amount: 1, label: "Believer" },
-                        { amount: 5, label: "Early Supporter" },
-                        { amount: 10, label: "Backing You" },
-                        { amount: 50, label: "Champion" },
-                        { amount: 100, label: "Lead Believer" },
-                      ].map((tier) => (
-                        <button
-                          key={tier.amount}
-                          style={{
-                            ...styles.tierBtn,
-                            ...(supportAmount === tier.amount ? styles.tierBtnActive : {}),
-                          }}
-                          onClick={() => setSupportAmount(tier.amount)}
-                        >
-                          <span style={styles.tierAmount}>${tier.amount}</span>
-                          <span style={styles.tierLabel}>{tier.label}</span>
-                        </button>
-                      ))}
-                    </div>
-
-                    <p style={styles.supportLabel}>Your details</p>
-                    <input
-                      style={styles.supportInput}
-                      placeholder="Your name"
-                      value={supportName}
-                      onChange={(e) => setSupportName(e.target.value)}
-                    />
-                    <input
-                      style={styles.supportInput}
-                      placeholder="Your email"
-                      type="email"
-                      value={supportEmail}
-                      onChange={(e) => setSupportEmail(e.target.value)}
-                    />
-
-                    {supportError && <p style={styles.supportError}>{supportError}</p>}
-
-                    <button
-                      style={{
-                        ...styles.supportPayBtn,
-                        opacity: supportName && supportEmail && supportAmount && !supportLoading ? 1 : 0.5,
-                      }}
-                      onClick={handleSupport}
-                      disabled={!supportName || !supportEmail || !supportAmount || supportLoading}
-                    >
-                      <Heart size={14} color="#ffffff" />
-                      {supportLoading ? "Processing..." : `Support with $${supportAmount || "..."}`}
-                    </button>
-
-                    <p style={styles.supportDisclaimer}>
-                      Secure payment via Paystack. You get early access forever.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
+            <SupportModal
+              startupName={profile.startup_name}
+              profileId={profile.id}
+              onClose={() => setShowSupport(false)}
+            />
           )}
         </>
       )}
@@ -1129,10 +368,7 @@ export default function SlugClient({
   );
 }
 
-// ── Styles ─────────────────────────────────────────────────────────────────
-
 type Styles = { [key: string]: React.CSSProperties };
-
 const styles: Styles = {
   page: { minHeight: "100vh", backgroundColor: "#f5f5f5" },
   centeredPage: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#f5f5f5", padding: "24px" },
@@ -1144,7 +380,6 @@ const styles: Styles = {
   notFoundLink: { fontSize: "13px", color: "#111111", fontWeight: "600", textDecoration: "underline" },
   coverWrapper: { position: "relative" },
   cover: { width: "100%", height: "200px", background: "linear-gradient(135deg, #111111 0%, #1a1a2e 50%, #16213e 100%)", position: "relative", overflow: "hidden", borderBottomLeftRadius: "24px", borderBottomRightRadius: "24px" },
-  coverSvg: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%" },
   profileHeader: { backgroundColor: "#f5f5f5", padding: "0 32px 24px 32px", maxWidth: "800px", margin: "0 auto" },
   logoCircle: { width: "80px", height: "80px", borderRadius: "20px", backgroundColor: "#111111", display: "flex", alignItems: "center", justifyContent: "center", marginTop: "-40px", marginBottom: "16px", border: "3px solid #f5f5f5", boxShadow: "0 4px 16px rgba(0,0,0,0.15)", overflow: "hidden", flexShrink: 0, position: "relative", zIndex: 10 },
   logoImg: { width: "100%", height: "100%", objectFit: "cover" },
@@ -1168,86 +403,15 @@ const styles: Styles = {
   pill: { padding: "5px 12px", backgroundColor: "#ffffff", borderRadius: "99px", fontSize: "12px", color: "#555555", fontWeight: "500", border: "1px solid #eeeeee", display: "flex", alignItems: "center" },
   pillLink: { padding: "5px 12px", backgroundColor: "#ffffff", borderRadius: "99px", fontSize: "12px", color: "#555555", fontWeight: "500", border: "1px solid #eeeeee", textDecoration: "none", display: "flex", alignItems: "center" },
   validationPill: { padding: "5px 12px", borderRadius: "99px", fontSize: "12px", fontWeight: "600", display: "flex", alignItems: "center", cursor: "pointer" },
-  validationCard: { borderRadius: "12px", padding: "16px" },
-  validationCardTop: { display: "flex", alignItems: "center", gap: "14px", marginBottom: "12px" },
-  validationBand: { fontSize: "14px", fontWeight: "700", margin: "0 0 2px 0" },
-  validationSubtext: { fontSize: "12px", color: "#888888", margin: "0" },
-  validationBar: { width: "100%", height: "6px", backgroundColor: "#e5e5e5", borderRadius: "99px", overflow: "hidden" },
-  validationBarFill: { height: "100%", borderRadius: "99px", transition: "width 0.6s ease" },
-  validationNote: { fontSize: "11px", color: "#888888", margin: "10px 0 0 0", lineHeight: "1.5" },
   tabsWrapper: { backgroundColor: "#f5f5f5", position: "sticky", top: 0, zIndex: 90, overflowX: "auto" },
   tabs: { display: "flex", gap: "6px", maxWidth: "800px", margin: "0 auto", padding: "12px 24px" },
   tab: { padding: "7px 16px", fontSize: "13px", fontWeight: "500", color: "#888888", backgroundColor: "#ffffff", border: "1px solid #eeeeee", borderRadius: "99px", cursor: "pointer", whiteSpace: "nowrap", display: "flex", alignItems: "center", transition: "all 0.15s ease" },
   tabActive: { color: "#ffffff", backgroundColor: "#111111", border: "1px solid #111111", fontWeight: "600" },
   tabContent: { maxWidth: "800px", margin: "0 auto", padding: "8px 24px 40px 24px" },
-  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "14px" },
-  infoCard: { backgroundColor: "#ffffff", borderRadius: "14px", padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", border: "1px solid #f0f0f0" },
-  infoCardFull: { gridColumn: "1 / -1" },
-  infoCardEmpty: { backgroundColor: "#fafafa", border: "1px dashed #e5e5e5", boxShadow: "none" },
-  infoCardTop: { display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" },
-  infoCardIconWrapper: { display: "flex", alignItems: "center" },
-  infoCardCapsule: { fontSize: "11px", fontWeight: "600", color: "#999999", textTransform: "uppercase", letterSpacing: "0.07em", backgroundColor: "#f5f5f5", padding: "3px 10px", borderRadius: "99px" },
-  infoCardValue: { fontSize: "14px", color: "#333333", lineHeight: "1.7", margin: "0" },
-  infoCardValueEmpty: { color: "#cccccc", fontStyle: "italic", fontSize: "13px" },
-  fundraisingRow: { display: "flex", justifyContent: "space-between", alignItems: "flex-end" },
-  fundraisingItem: { display: "flex", flexDirection: "column", gap: "4px" },
-  fundraisingLabel: { fontSize: "11px", color: "#999999", fontWeight: "500", margin: "0", textTransform: "uppercase", letterSpacing: "0.06em" },
-  fundraisingValue: { fontSize: "20px", fontWeight: "700", color: "#111111", margin: "0" },
-  founderContent: { display: "flex", flexDirection: "column", gap: "14px" },
-  founderCard: { backgroundColor: "#ffffff", borderRadius: "14px", padding: "24px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", border: "1px solid #f0f0f0" },
-  founderHeaderRow: { display: "flex", alignItems: "center", gap: "16px" },
-  founderAvatar: { width: "60px", height: "60px", borderRadius: "50%", backgroundColor: "#f0f0f0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" },
-  founderPhoto: { width: "100%", height: "100%", objectFit: "cover" },
-  founderInitials: { fontSize: "18px", fontWeight: "600", color: "#111111" },
-  founderName: { fontSize: "17px", fontWeight: "700", color: "#111111", margin: "0 0 3px 0" },
-  founderRole: { fontSize: "13px", color: "#666666", margin: "0 0 8px 0" },
-  founderSocials: { display: "flex", gap: "8px" },
-  socialLink: { fontSize: "12px", color: "#111111", fontWeight: "500", textDecoration: "none", display: "flex", alignItems: "center", gap: "4px", border: "1px solid #eeeeee", padding: "4px 10px", borderRadius: "99px", backgroundColor: "#fafafa" },
-  cvDivider: { height: "1px", backgroundColor: "#f0f0f0", margin: "20px 0" },
-  founderBio: { fontSize: "14px", color: "#444444", lineHeight: "1.7", margin: "0" },
-  cvSectionHeader: { display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" },
-  cvSectionLabel: { fontSize: "11px", fontWeight: "600", color: "#999999", textTransform: "uppercase", letterSpacing: "0.07em", margin: "0" },
-  skillsRow: { display: "flex", flexWrap: "wrap", gap: "8px" },
-  skillTag: { padding: "5px 14px", backgroundColor: "#f5f5f5", borderRadius: "99px", fontSize: "12px", color: "#444444", fontWeight: "500", border: "1px solid #eeeeee" },
-  cvEntry: { display: "flex", gap: "14px", marginBottom: "16px" },
-  cvEntryLeft: { display: "flex", flexDirection: "column", alignItems: "center", width: "10px", flexShrink: 0, marginTop: "5px" },
-  cvEntryDot: { width: "10px", height: "10px", borderRadius: "50%", backgroundColor: "#111111", flexShrink: 0 },
-  cvEntryLine: { width: "1px", flex: 1, backgroundColor: "#eeeeee", marginTop: "4px", minHeight: "24px" },
-  cvEntryBody: { flex: 1, paddingBottom: "8px" },
-  cvEntryTitle: { fontSize: "14px", fontWeight: "600", color: "#111111", margin: "0 0 2px 0" },
-  cvEntrySubtitle: { fontSize: "13px", color: "#666666", margin: "0 0 2px 0" },
-  cvEntryDate: { fontSize: "12px", color: "#aaaaaa", margin: "0" },
-  cvText: { fontSize: "14px", color: "#444444", lineHeight: "1.7", margin: "0" },
-  deckWrapper: { display: "flex", flexDirection: "column", gap: "14px" },
-  deckViewerCard: { backgroundColor: "#ffffff", borderRadius: "14px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", border: "1px solid #f0f0f0" },
-  deckViewerHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid #f0f0f0" },
-  deckViewerTitleRow: { display: "flex", alignItems: "center", gap: "8px" },
-  deckViewerTitleText: { fontSize: "14px", fontWeight: "600", color: "#111111" },
-  deckDownloadBtn: { padding: "6px 14px", fontSize: "12px", fontWeight: "500", color: "#111111", backgroundColor: "#f5f5f5", border: "1px solid #eeeeee", borderRadius: "6px", textDecoration: "none" },
-  deckIframeWrapper: { width: "100%", height: "600px", backgroundColor: "#f9f9f9" },
-  deckIframe: { width: "100%", height: "100%", border: "none" },
-  deckEmptyCard: { backgroundColor: "#ffffff", borderRadius: "14px", padding: "56px 32px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", border: "1px solid #f0f0f0", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" },
-  deckEmptyIconWrapper: { width: "56px", height: "56px", borderRadius: "16px", backgroundColor: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "16px" },
-  deckEmptyTitle: { fontSize: "16px", fontWeight: "700", color: "#111111", margin: "0 0 8px 0" },
-  deckEmptyText: { fontSize: "13px", color: "#999999", margin: "0", lineHeight: "1.6", maxWidth: "280px" },
   drStateCard: { backgroundColor: "#ffffff", borderRadius: "14px", padding: "48px 32px", border: "1px solid #f0f0f0", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "12px", maxWidth: "480px", margin: "0 auto" },
   drStateIcon: { width: "56px", height: "56px", borderRadius: "16px", backgroundColor: "#fff5f5", display: "flex", alignItems: "center", justifyContent: "center" },
   drStateTitle: { fontSize: "18px", fontWeight: "700", color: "#111111", margin: "0" },
   drStateText: { fontSize: "14px", color: "#666666", lineHeight: "1.6", margin: "0" },
-  drViewerWrapper: { display: "flex", flexDirection: "column", gap: "14px" },
-  drViewerHeader: { backgroundColor: "#f0fff4", borderRadius: "14px", padding: "20px", border: "1px solid #c6f6d5", display: "flex", alignItems: "flex-start", gap: "14px" },
-  drViewerIconBox: { width: "44px", height: "44px", borderRadius: "12px", backgroundColor: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: "1px solid #c6f6d5" },
-  drViewerTitle: { fontSize: "15px", fontWeight: "700", color: "#111111", margin: "0 0 4px 0" },
-  drViewerSub: { fontSize: "13px", color: "#38a169", margin: "0", lineHeight: "1.5" },
-  drSection: { backgroundColor: "#ffffff", borderRadius: "14px", padding: "20px", border: "1px solid #f0f0f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" },
-  drSectionLabel: { fontSize: "11px", fontWeight: "600", color: "#aaaaaa", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 14px 0" },
-  drDocRow: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f5f5f5" },
-  drDocLeft: { display: "flex", alignItems: "center", gap: "8px" },
-  drDocTitle: { fontSize: "13px", fontWeight: "500", color: "#111111" },
-  drDocViewBtn: { fontSize: "12px", fontWeight: "500", color: "#111111", backgroundColor: "#f5f5f5", border: "1px solid #eeeeee", borderRadius: "6px", padding: "4px 12px", cursor: "pointer" },
-  drEmptyDocs: { backgroundColor: "#fafafa", borderRadius: "12px", padding: "32px", textAlign: "center", border: "1px dashed #e5e5e5" },
-  drEmptyDocsText: { fontSize: "13px", color: "#aaaaaa", margin: "0" },
-  drLoading: { display: "flex", alignItems: "center", justifyContent: "center", padding: "48px" },
   dataRoomCard: { backgroundColor: "#ffffff", borderRadius: "14px", padding: "36px 32px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", border: "1px solid #f0f0f0", display: "flex", flexDirection: "column", alignItems: "center", maxWidth: "480px", margin: "0 auto" },
   lockIconWrapper: { width: "56px", height: "56px", borderRadius: "16px", backgroundColor: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "16px" },
   dataRoomTitle: { fontSize: "18px", fontWeight: "700", color: "#111111", margin: "0 0 8px 0", textAlign: "center" },
@@ -1263,24 +427,4 @@ const styles: Styles = {
   footerLink: { color: "#111111", fontWeight: "600", textDecoration: "none" },
   fab: { position: "fixed", bottom: "80px", right: "24px", zIndex: 200, display: "flex", alignItems: "center", gap: "8px", padding: "12px 20px", backgroundColor: "#38a169", border: "none", borderRadius: "99px", cursor: "pointer", boxShadow: "0 4px 20px rgba(56,161,105,0.4)" },
   fabText: { fontSize: "13px", fontWeight: "600", color: "#ffffff" },
-  supportOverlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "flex-end", justifyContent: "center" },
-  supportModal: { backgroundColor: "#ffffff", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: "480px", padding: "24px", maxHeight: "90vh", overflowY: "auto" },
-  supportModalHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" },
-  supportModalTitle: { display: "flex", alignItems: "center", gap: "8px", fontSize: "15px", fontWeight: "700", color: "#111111" },
-  supportCloseBtn: { fontSize: "14px", color: "#888888", background: "none", border: "none", cursor: "pointer", padding: "4px 8px" },
-  supportSuccess: { display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", padding: "24px 0", textAlign: "center" },
-  supportSuccessTitle: { fontSize: "18px", fontWeight: "700", color: "#111111", margin: "0" },
-  supportSuccessText: { fontSize: "14px", color: "#666666", margin: "0", lineHeight: "1.6" },
-  supportForm: { display: "flex", flexDirection: "column", gap: "12px" },
-  supportIntro: { fontSize: "14px", color: "#666666", lineHeight: "1.6", margin: "0" },
-  supportLabel: { fontSize: "12px", fontWeight: "600", color: "#aaaaaa", textTransform: "uppercase", letterSpacing: "0.07em", margin: "0" },
-  supportTiers: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" },
-  tierBtn: { display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", padding: "12px 8px", backgroundColor: "#f5f5f5", border: "1px solid #eeeeee", borderRadius: "10px", cursor: "pointer" },
-  tierBtnActive: { backgroundColor: "#f0fff4", border: "1px solid #38a169" },
-  tierAmount: { fontSize: "16px", fontWeight: "700", color: "#111111" },
-  tierLabel: { fontSize: "10px", color: "#888888" },
-  supportInput: { width: "100%", padding: "11px 14px", fontSize: "16px", border: "1px solid #e5e5e5", borderRadius: "8px", outline: "none", backgroundColor: "#fafafa", boxSizing: "border-box" },
-  supportError: { fontSize: "12px", color: "#e53e3e", margin: "0" },
-  supportPayBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", width: "100%", padding: "14px", fontSize: "14px", fontWeight: "600", color: "#ffffff", backgroundColor: "#38a169", border: "none", borderRadius: "10px", cursor: "pointer", transition: "opacity 0.2s ease" },
-  supportDisclaimer: { fontSize: "11px", color: "#bbbbbb", textAlign: "center", margin: "0" },
 };

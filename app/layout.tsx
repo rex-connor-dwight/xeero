@@ -3,6 +3,7 @@ import "./globals.css";
 import { XeeroProvider } from "@/lib/context";
 import NavigationLoader from "@/components/NavigationLoader";
 
+
 export const metadata: Metadata = {
   title: "Xeero: Everything your startup needs in one link",
   description: "Build a professional startup profile in minutes. Share your pitch deck, waitlist, data room, and founder CV with investors, all from one clean link.",

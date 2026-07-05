@@ -11,8 +11,6 @@ import {
 import { supabase } from "@/lib/supabase";
 import type { User, Session } from "@supabase/supabase-js";
 
-// ── Types ──────────────────────────────────────────────────────────────────
-
 export type Profile = {
   id: string;
   user_id: string;
@@ -62,12 +60,32 @@ export type Profile = {
   validation_band: string | null;
   validation_answers: any | null;
   subaccount_code: string | null;
+  plan_type: string;
+  plan_expires_at: string | null;
+};
+
+export type TeamProfile = {
+  id: string;
+  user_id: string;
+  profile_id: string;
+  name: string;
+  role: string;
+  bio: string | null;
+  photo_url: string | null;
+  linkedin_url: string | null;
+  twitter_url: string | null;
+  permissions: string[];
+  created_at: string;
 };
 
 type XeeroContextType = {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
+  teamProfile: TeamProfile | null;
+  founderProfile: Profile | null;
+  isTeamMember: boolean;
+  isTeamsActive: boolean;
   loading: boolean;
   profileLoading: boolean;
   refreshProfile: () => Promise<void>;
@@ -75,9 +93,8 @@ type XeeroContextType = {
   signOut: () => Promise<void>;
 };
 
-// ── Cache helpers ──────────────────────────────────────────────────────────
-
-const CACHE_KEY = "xeero_profile_cache";
+const CACHE_KEY = "xeero_profile_cache_v2";
+const TEAM_CACHE_KEY = "xeero_team_cache_v2";
 
 function readCache(userId: string): Profile | null {
   try {
@@ -98,15 +115,37 @@ function writeCache(userId: string, profile: Profile) {
 function clearCache(userId: string) {
   try {
     localStorage.removeItem(`${CACHE_KEY}_${userId}`);
+    localStorage.removeItem(`${TEAM_CACHE_KEY}_${userId}`);
+    localStorage.removeItem(`xeero_team_cache_${userId}`);
+    localStorage.removeItem(`xeero_profile_cache_${userId}`);
+    localStorage.removeItem(`xeero_profile_cache_v2_${userId}`);
   } catch {}
 }
 
-// ── Context ────────────────────────────────────────────────────────────────
+function readTeamCache(userId: string): { teamProfile: TeamProfile; founderProfile: Profile } | null {
+  try {
+    const raw = localStorage.getItem(`${TEAM_CACHE_KEY}_${userId}`);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function writeTeamCache(userId: string, teamProfile: TeamProfile, founderProfile: Profile) {
+  try {
+    localStorage.setItem(`${TEAM_CACHE_KEY}_${userId}`, JSON.stringify({ teamProfile, founderProfile }));
+  } catch {}
+}
 
 const XeeroContext = createContext<XeeroContextType>({
   user: null,
   session: null,
   profile: null,
+  teamProfile: null,
+  founderProfile: null,
+  isTeamMember: false,
+  isTeamsActive: false,
   loading: true,
   profileLoading: true,
   refreshProfile: async () => {},
@@ -114,49 +153,87 @@ const XeeroContext = createContext<XeeroContextType>({
   signOut: async () => {},
 });
 
-// ── Provider ───────────────────────────────────────────────────────────────
-
 export function XeeroProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [teamProfile, setTeamProfile] = useState<TeamProfile | null>(null);
+  const [founderProfile, setFounderProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(true);
   const realtimeChannel = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  // ── Fetch profile — uses cache first, then background refresh ──
   const fetchProfile = useCallback(async (userId: string, silent = false) => {
-    // Load from cache instantly
-    const cached = readCache(userId);
-    if (cached) {
-      setProfile(cached);
-      setProfileLoading(false); // show cached data immediately
+    const cachedFounder = readCache(userId);
+    if (cachedFounder) {
+      setProfile(cachedFounder);
+      setTeamProfile(null);
+      setFounderProfile(null);
+      setProfileLoading(false);
     } else if (!silent) {
       setProfileLoading(true);
     }
 
-    // Always fetch fresh data in background
-    const { data, error } = await supabase
+    const { data: founderData, error: founderError } = await supabase
       .from("profiles")
       .select("*")
       .eq("user_id", userId)
       .single();
 
-    if (!error && data) {
-      setProfile(data as Profile);
-      writeCache(userId, data as Profile);
+    if (founderData && !founderError) {
+      setProfile(founderData as Profile);
+      setTeamProfile(null);
+      setFounderProfile(null);
+      writeCache(userId, founderData as Profile);
+      setProfileLoading(false);
+      return;
+    }
+
+    if (founderError && founderError.code === "PGRST116") {
+      const cachedTeam = readTeamCache(userId);
+      if (cachedTeam) {
+        setTeamProfile(cachedTeam.teamProfile);
+        setFounderProfile(cachedTeam.founderProfile);
+        setProfile(null);
+        setProfileLoading(false);
+      }
+
+      const { data: teamData, error: teamError } = await supabase
+        .from("team_profiles")
+        .select("*, profiles(*)")
+        .eq("user_id", userId)
+        .single();
+
+      if (!teamError && teamData) {
+        const tp: TeamProfile = {
+          id: teamData.id,
+          user_id: teamData.user_id,
+          profile_id: teamData.profile_id,
+          name: teamData.name,
+          role: teamData.role,
+          bio: teamData.bio,
+          photo_url: teamData.photo_url,
+          linkedin_url: teamData.linkedin_url,
+          twitter_url: teamData.twitter_url,
+          permissions: teamData.permissions || [],
+          created_at: teamData.created_at,
+        };
+        const fp = teamData.profiles as Profile;
+        setTeamProfile(tp);
+        setFounderProfile(fp);
+        setProfile(null);
+        writeTeamCache(userId, tp, fp);
+      }
     }
 
     setProfileLoading(false);
   }, []);
 
-  // ── Refresh profile manually ──
   const refreshProfile = useCallback(async () => {
     if (!user) return;
     await fetchProfile(user.id, true);
   }, [user, fetchProfile]);
 
-  // ── Update profile cache optimistically ──
   const updateProfileCache = useCallback((updates: Partial<Profile>) => {
     setProfile((prev) => {
       if (!prev) return prev;
@@ -166,7 +243,6 @@ export function XeeroProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // ── Sign out ──
   const signOut = useCallback(async () => {
     if (user) clearCache(user.id);
     if (realtimeChannel.current) {
@@ -177,14 +253,14 @@ export function XeeroProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setSession(null);
     setProfile(null);
+    setTeamProfile(null);
+    setFounderProfile(null);
   }, [user]);
 
-  // ── Realtime listener ──
   const setupRealtime = useCallback((userId: string) => {
     if (realtimeChannel.current) {
       supabase.removeChannel(realtimeChannel.current);
     }
-
     realtimeChannel.current = supabase
       .channel(`profile:${userId}`)
       .on(
@@ -206,7 +282,6 @@ export function XeeroProvider({ children }: { children: React.ReactNode }) {
       .subscribe();
   }, []);
 
-  // ── Auth state listener ──
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -224,21 +299,20 @@ export function XeeroProvider({ children }: { children: React.ReactNode }) {
       async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-
         if (event === "SIGNED_IN" && session?.user) {
           await fetchProfile(session.user.id);
           setupRealtime(session.user.id);
         }
-
         if (event === "SIGNED_OUT") {
           setProfile(null);
+          setTeamProfile(null);
+          setFounderProfile(null);
           setProfileLoading(false);
           if (realtimeChannel.current) {
             await supabase.removeChannel(realtimeChannel.current);
             realtimeChannel.current = null;
           }
         }
-
         setLoading(false);
       }
     );
@@ -251,12 +325,24 @@ export function XeeroProvider({ children }: { children: React.ReactNode }) {
     };
   }, [fetchProfile, setupRealtime]);
 
+  const isTeamMember = !!teamProfile && !profile;
+
+  // isTeamsActive always looks at the founder's plan — team members inherit the founder's plan status
+  const planSource = isTeamMember ? founderProfile : profile;
+  const isTeamsActive =
+    planSource?.plan_type === "teams" &&
+    (!planSource?.plan_expires_at || new Date(planSource.plan_expires_at) > new Date());
+
   return (
     <XeeroContext.Provider
       value={{
         user,
         session,
         profile,
+        teamProfile,
+        founderProfile,
+        isTeamMember,
+        isTeamsActive,
         loading,
         profileLoading,
         refreshProfile,
@@ -264,8 +350,7 @@ export function XeeroProvider({ children }: { children: React.ReactNode }) {
         signOut,
       }}
     >
-      {/* ── Global page loader ── */}
-      {(loading || profileLoading) && !profile && (
+      {(loading || profileLoading) && !profile && !teamProfile && (
         <div style={{
           position: "fixed",
           top: 0,
@@ -295,8 +380,6 @@ export function XeeroProvider({ children }: { children: React.ReactNode }) {
     </XeeroContext.Provider>
   );
 }
-
-// ── Hook ───────────────────────────────────────────────────────────────────
 
 export function useXeero() {
   const context = useContext(XeeroContext);

@@ -174,3 +174,80 @@ entrypoint = "./functions/notify-opportunity/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/notify-opportunity/*.html" ]
+
+[functions.waitlist-broadcast]
+enabled = true
+verify_jwt = true
+import_map = "./functions/waitlist-broadcast/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/waitlist-broadcast/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/waitlist-broadcast/*.html" ]
+
+[functions.send-team-invite]
+enabled = true
+verify_jwt = true
+import_map = "./functions/send-team-invite/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/send-team-invite/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/send-team-invite/*.html" ]
+
+[functions.decline-data-room]
+enabled = true
+verify_jwt = true
+import_map = "./functions/decline-data-room/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/decline-data-room/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/decline-data-room/*.html" ]
+
+[functions.initialize-teams-upgrade]
+enabled = true
+verify_jwt = true
+import_map = "./functions/initialize-teams-upgrade/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/initialize-teams-upgrade/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/initialize-teams-upgrade/*.html" ]
+
+[functions.teams-webhook]
+enabled = true
+verify_jwt = true
+import_map = "./functions/teams-webhook/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/teams-webhook/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/teams-webhook/*.html" ]
+
+[functions.initialize-incorporation-payment]
+enabled = true
+verify_jwt = true
+import_map = "./functions/initialize-incorporation-payment/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/initialize-incorporation-payment/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/initialize-incorporation-payment/*.html" ]
+
+[functions.incorporation-webhook]
+enabled = true
+verify_jwt = true
+import_map = "./functions/incorporation-webhook/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/incorporation-webhook/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/incorporation-webhook/*.html" ]

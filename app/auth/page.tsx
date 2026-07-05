@@ -87,17 +87,32 @@ function AuthContent() {
             // Check if profile exists
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
-              const { data: profile } = await supabase
-                .from("profiles")
-                .select("id")
-                .eq("user_id", user.id)
-                .single();
-              
-                if (profile) {
-                  router.push("/dashboard");
-                } else {
-                  router.push("/onboarding");
-                }
+              // Check founder profile first
+              const { data: founderProfile } = await supabase
+              .from("profiles")
+              .select("id")
+              .eq("user_id", user.id)
+              .single();
+
+              if (founderProfile) {
+              router.push("/dashboard");
+              return;
+              }
+
+              // Check team profile
+              const { data: teamProfile } = await supabase
+              .from("team_profiles")
+              .select("id")
+              .eq("user_id", user.id)
+              .single();
+
+              if (teamProfile) {
+              router.push("/team-dashboard");
+              return;
+              }
+
+              // Neither — new user, go to onboarding
+              router.push("/onboarding");
             }
           }
         }

@@ -23,6 +23,10 @@ Deno.serve(async (req: Request) => {
 
     if (reference.startsWith("xeero_support_")) {
       targetFunction = "support-webhook";
+    } else if (reference.startsWith("xeero_teams_")) {
+      targetFunction = "teams-webhook";
+    } else if (reference.startsWith("xeero_incorp_")) {
+      targetFunction = "incorporation-webhook";
     } else if (reference.startsWith("xeero_")) {
       targetFunction = "paystack-webhook";
     } else {
@@ -34,11 +38,7 @@ Deno.serve(async (req: Request) => {
 
     const res = await fetch(
       `${SUPABASE_URL}/functions/v1/${targetFunction}`,
-      {
-        method: "POST",
-        headers: forwardHeaders,
-        body,
-      }
+      { method: "POST", headers: forwardHeaders, body }
     );
 
     console.log("webhook-router forward result:", res.status);
