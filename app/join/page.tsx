@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { CheckCircle, AlertCircle, Lock, Users } from "lucide-react";
@@ -21,7 +21,7 @@ type InviteData = {
   };
 };
 
-export default function JoinPage() {
+function JoinPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
@@ -339,6 +339,14 @@ export default function JoinPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function JoinPage() {
+  return (
+    <Suspense fallback={null}>
+      <JoinPageContent />
+    </Suspense>
   );
 }
 
