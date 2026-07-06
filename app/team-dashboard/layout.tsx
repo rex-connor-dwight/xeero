@@ -34,7 +34,6 @@ export default function TeamDashboardLayout({ children }: { children: React.Reac
     { label: "Waitlist", icon: <Mail size={18} />, path: "/team-dashboard/waitlist", permission: "waitlist_email" },
     { label: "Validate", icon: <Lightbulb size={18} />, path: "/team-dashboard/validate", permission: "validate" },
     { label: "Pitch Deck", icon: <FileText size={18} />, path: "/team-dashboard/deck", permission: "deck_upload" },
-    { label: "Data Room", icon: <FolderLock size={18} />, path: "/team-dashboard/dataroom", permission: "data_room" },
     { label: "Team", icon: <Users size={18} />, path: "/team-dashboard/team", always: true },
     { label: "Funding", icon: <Rocket size={18} />, path: "/team-dashboard/funding", permission: "funding" },
     { label: "Notifications", icon: <Bell size={18} />, path: "/team-dashboard/notifications", always: true },

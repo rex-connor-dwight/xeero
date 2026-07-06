@@ -16,7 +16,25 @@ Deno.serve(async (req: Request) => {
     }
 
     const data = event.data;
-    const profileId = data.metadata?.profile_id;
+
+    // Paystack sometimes sends metadata as a JSON string instead of an object
+    let metadata = data.metadata;
+    if (typeof metadata === "string") {
+      try {
+        metadata = JSON.parse(metadata);
+      } catch {
+        console.error("Failed to parse metadata string:", metadata);
+        metadata = {};
+      }
+    }
+
+    const profileId = metadata?.profile_id ||
+      metadata?.custom_fields?.find(
+        (f: any) => f.variable_name === "profile_id"
+      )?.value;
+
+    console.log("Parsed metadata:", JSON.stringify(metadata));
+    console.log("Resolved profileId:", profileId);
 
     if (!profileId) {
       console.error("No profile_id in metadata");
@@ -50,7 +68,7 @@ Deno.serve(async (req: Request) => {
 
     await supabaseAdmin.from("payments").insert({
       profile_id: profileId,
-      amount_usd: data.metadata?.usd_price || 29.99,
+      amount_usd: metadata?.usd_price || 29.99,
       amount_ngn: data.amount / 100,
       paystack_reference: data.reference,
       payment_type: "teams_annual",
