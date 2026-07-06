@@ -181,6 +181,18 @@ export default function PaymentPage() {
         amount: data.ngn_amount * 100,
         ref: data.reference,
         currency: "NGN",
+        metadata: {
+          profile_id: profile.id,
+          user_id: user.id,
+          usd_price: 9,
+          custom_fields: [
+            {
+              display_name: "Profile ID",
+              variable_name: "profile_id",
+              value: profile.id,
+            },
+          ],
+        },
         callback: async (response: any) => {
           console.log("Paystack callback:", response);
           setLoading(true);
