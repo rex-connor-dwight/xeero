@@ -71,6 +71,20 @@ export default function SupportModal({
         amount: data.ngn_amount * 100,
         ref: data.reference,
         currency: "NGN",
+        metadata: {
+          profile_id: profileId,
+          amount_usd: supportAmount,
+          supporter_name: supportName,
+          supporter_email: supportEmail,
+          is_public: true,
+          custom_fields: [
+            {
+              display_name: "Profile ID",
+              variable_name: "profile_id",
+              value: profileId,
+            },
+          ],
+        },
         callback: () => {
           setSupportDone(true);
         },
@@ -78,7 +92,6 @@ export default function SupportModal({
           setSupportLoading(false);
         },
       });
-      handler.openIframe();
 
     } catch {
       setSupportError("Something went wrong. Please try again.");
