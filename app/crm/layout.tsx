@@ -14,6 +14,7 @@ import {
   Zap,
   Sparkles,
   Crown,
+  Speaker,
 } from "lucide-react";
 
 const ADMIN_EMAILS = ["connor@xeero.me"];
@@ -33,6 +34,7 @@ const navItems: NavItem[] = [
   { label: "Opportunities", icon: <Zap size={16} />, path: "/crm/opportunities" },
   { label: "Roadmap", icon: <Sparkles size={16} />, path: "/crm/roadmap" },
   { label: "Services", icon: <Crown size={16} />, path: "/crm/services" },
+  { label: "Fireside", icon: <Speaker size={16} />, path: "/crm/fireside" },
 ];
 
 export default function CrmLayout({ children }: { children: React.ReactNode }) {
