@@ -1,0 +1,14 @@
+alter table profiles add column if not exists link_instagram text;
+alter table profiles add column if not exists link_x text;
+alter table profiles add column if not exists link_linkedin text;
+alter table profiles add column if not exists link_facebook text;
+alter table profiles add column if not exists link_youtube text;
+alter table profiles add column if not exists link_email text;
+alter table profiles add column if not exists link_calendly text;
+alter table profiles add column if not exists link_producthunt text;
+alter table profiles add column if not exists link_appstore text;
+alter table profiles add column if not exists link_playstore text;
+alter table profiles add column if not exists link_newsletter text;
+alter table profiles add column if not exists link_press text;
+alter table profiles add column if not exists link_other_label text;
+alter table profiles add column if not exists link_other_url text;

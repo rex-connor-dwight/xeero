@@ -10,6 +10,7 @@ import {
 } from "react";
 import { supabase } from "@/lib/supabase";
 import type { User, Session } from "@supabase/supabase-js";
+import type { Tab } from "./data/slugPage";
 
 export type Profile = {
   id: string;
@@ -62,6 +63,33 @@ export type Profile = {
   subaccount_code: string | null;
   plan_type: string;
   plan_expires_at: string | null;
+  link_instagram: string | null;
+  link_instagram_text: string | null;
+  link_x: string | null;
+  link_x_text: string | null;
+  link_linkedin: string | null;
+  link_linkedin_text: string | null;
+  link_facebook: string | null;
+  link_facebook_text: string | null;
+  link_youtube: string | null;
+  link_youtube_text: string | null;
+  link_email: string | null;
+  link_email_text: string | null;
+  link_calendly: string | null;
+  link_calendly_text: string | null;
+  link_producthunt: string | null;
+  link_producthunt_text: string | null;
+  link_appstore: string | null;
+  link_appstore_text: string | null;
+  link_playstore: string | null;
+  link_playstore_text: string | null;
+  link_newsletter: string | null;
+  link_newsletter_text: string | null;
+  link_press: string | null;
+  link_press_text: string | null;
+  link_other_label: string | null;
+  link_other_url: string | null;
+  visible_tabs: Tab[];
 };
 
 export type TeamProfile = {

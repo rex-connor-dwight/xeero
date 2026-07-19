@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useXeero } from "@/lib/context";
 import { Settings, User, ExternalLink, AlertTriangle, Crown, Users, Check } from "lucide-react";
 import AccountSettings from "@/components/dashboard/AccountSettings";
+import VisibilityToggles from "@/components/dashboard/VisibilityToggles";
 
 declare global {
   interface Window {
@@ -117,6 +118,8 @@ export default function SettingsPage() {
       </div>
 
       <AccountSettings />
+      <AccountSettings />
+      <VisibilityToggles />
 
       {/* ── Billing / Xeero for Teams ── */}
       <p style={styles.sectionLabel}>Billing</p>

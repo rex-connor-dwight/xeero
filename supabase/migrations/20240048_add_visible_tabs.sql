@@ -1,0 +1,1 @@
+alter table profiles add column if not exists visible_tabs text[] default array['overview','team','deck','links','dataroom'];

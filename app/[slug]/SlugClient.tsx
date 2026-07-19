@@ -20,6 +20,8 @@ import {
   verifyToken,
   submitDataRoomRequest,
   getInitials,
+  getVisibleTabs,
+  ALL_TABS,
   type Profile,
   type Tab,
   type DrAccess,
@@ -30,7 +32,10 @@ import OverviewTab from "@/components/slug/OverviewTab";
 import TeamTab from "@/components/slug/TeamTab";
 import DeckTab from "@/components/slug/DeckTab";
 import DataRoomViewer from "@/components/slug/DataRoomViewer";
+import LinksTab from "@/components/slug/LinksTab";
+import { hasAnyLinks } from "@/lib/data/slugPage";
 import SupportModal from "@/components/slug/SupportModal";
+
 
 export default function SlugClient({
   slug,
@@ -76,6 +81,8 @@ export default function SlugClient({
       if (!data) { setNotFound(true); setLoading(false); return; }
       if (!data.is_live) { setNotLive(true); setLoading(false); return; }
       setProfile(data);
+      const visible = getVisibleTabs(data);
+      if (visible.length > 0) setActiveTab(visible[0]);
       if (data.deck_url) {
         const url = await getDeckSignedUrl(data.deck_url);
         setDeckSignedUrl(url);
@@ -156,12 +163,8 @@ export default function SlugClient({
 
   if (!profile) return null;
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: "overview", label: "Overview" },
-    { key: "team", label: "Team" },
-    { key: "deck", label: "Deck" },
-    { key: "dataroom", label: "Data Room" },
-  ];
+  const visibleKeys = getVisibleTabs(profile);
+  const tabs = ALL_TABS.filter((t) => visibleKeys.includes(t.key));
 
   const validationBg = profile.validation_score
     ? profile.validation_score >= 70 ? "#f0fff4" : profile.validation_score >= 40 ? "#fffbeb" : "#fff5f5"
@@ -287,6 +290,8 @@ export default function SlugClient({
         {activeTab === "team" && <TeamTab profile={profile} />}
 
         {activeTab === "deck" && <DeckTab deckSignedUrl={deckSignedUrl} />}
+
+        {activeTab === "links" && <LinksTab profile={profile} />}
 
         {activeTab === "dataroom" && (
           <>

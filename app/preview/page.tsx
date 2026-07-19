@@ -10,8 +10,9 @@ import { ValidationScoreCard } from "@/components/slug/InfoCard";
 import OverviewTab from "@/components/slug/OverviewTab";
 import TeamTab from "@/components/slug/TeamTab";
 import DeckTab from "@/components/slug/DeckTab";
+import LinksTab from "@/components/slug/LinksTab";
+import { getVisibleTabs, ALL_TABS, type Tab } from "@/lib/data/slugPage";
 
-type Tab = "overview" | "team" | "deck" | "dataroom";
 
 export default function PreviewPage() {
   const router = useRouter();
@@ -21,6 +22,14 @@ export default function PreviewPage() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [deckSignedUrl, setDeckSignedUrl] = useState<string | null>(null);
   const [showValidationCard, setShowValidationCard] = useState(false);
+
+  useEffect(() => {
+    if (!activeProfile) return;
+    const visible = getVisibleTabs(activeProfile);
+    if (visible.length > 0 && !visible.includes(activeTab)) {
+      setActiveTab(visible[0]);
+    }
+  }, [activeProfile]);
 
   useEffect(() => {
     if (!activeProfile?.deck_url) return;
@@ -33,12 +42,8 @@ export default function PreviewPage() {
 
   if (!activeProfile) return null;
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: "overview", label: "Overview" },
-    { key: "team", label: "Team" },
-    { key: "deck", label: "Deck" },
-    { key: "dataroom", label: "Data Room" },
-  ];
+  const visibleKeys = getVisibleTabs(activeProfile);
+  const tabs = ALL_TABS.filter((t) => visibleKeys.includes(t.key));
 
   const validationBg = activeProfile.validation_score
     ? activeProfile.validation_score >= 70 ? "#f0fff4" : activeProfile.validation_score >= 40 ? "#fffbeb" : "#fff5f5"
@@ -135,7 +140,7 @@ export default function PreviewPage() {
         </div>
       </div>
 
-      <div style={styles.tabContent}>
+      <div style={styles.tabContent} key={`${activeTab}-${(activeProfile.visible_tabs || []).join(",")}`}>
         {activeTab === "overview" && <OverviewTab profile={activeProfile} />}
         {activeTab === "team" && <TeamTab profile={activeProfile} />}
 
@@ -145,6 +150,8 @@ export default function PreviewPage() {
             emptyCta={{ label: "Set Up Deck", onClick: () => router.push("/dashboard/edit") }}
           />
         )}
+
+        {activeTab === "links" && <LinksTab profile={activeProfile} />}
 
         {activeTab === "dataroom" && (
           <div style={styles.dataRoomEmptyCard}>

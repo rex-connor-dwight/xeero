@@ -7,8 +7,9 @@ import { useXeero } from "@/lib/context";
 import { Save, Eye } from "lucide-react";
 import EditStartupTab from "@/components/dashboard/EditStartupTab";
 import EditFounderTab from "@/components/dashboard/EditFounderTab";
+import EditLinksTab from "@/components/dashboard/EditLinksTab";
 
-type EditTab = "startup" | "founder";
+type EditTab = "startup" | "founder" | "links";
 
 function generateId() {
   return Math.random().toString(36).slice(2, 9);
@@ -45,6 +46,19 @@ export default function EditPage() {
     founder_name: "", founder_role: "", founder_bio: "", founder_linkedin: "",
     founder_twitter: "", founder_photo_url: "", founder_achievements: "",
     founder_previous_startups: "", founder_skills: "", founder_experience: [], founder_education: [],
+    link_instagram: "", link_instagram_text: "",
+    link_x: "", link_x_text: "",
+    link_linkedin: "", link_linkedin_text: "",
+    link_facebook: "", link_facebook_text: "",
+    link_youtube: "", link_youtube_text: "",
+    link_email: "", link_email_text: "",
+    link_calendly: "", link_calendly_text: "",
+    link_producthunt: "", link_producthunt_text: "",
+    link_appstore: "", link_appstore_text: "",
+    link_playstore: "", link_playstore_text: "",
+    link_newsletter: "", link_newsletter_text: "",
+    link_press: "", link_press_text: "",
+    link_other_label: "", link_other_url: "",
   });
 
   useEffect(() => {
@@ -82,6 +96,32 @@ export default function EditPage() {
       founder_skills: contextProfile.founder_skills || "",
       founder_experience: contextProfile.founder_experience || [],
       founder_education: contextProfile.founder_education || [],
+      link_instagram: contextProfile.link_instagram || "",
+      link_instagram_text: contextProfile.link_instagram_text || "",
+      link_x: contextProfile.link_x || "",
+      link_x_text: contextProfile.link_x_text || "",
+      link_linkedin: contextProfile.link_linkedin || "",
+      link_linkedin_text: contextProfile.link_linkedin_text || "",
+      link_facebook: contextProfile.link_facebook || "",
+      link_facebook_text: contextProfile.link_facebook_text || "",
+      link_youtube: contextProfile.link_youtube || "",
+      link_youtube_text: contextProfile.link_youtube_text || "",
+      link_email: contextProfile.link_email || "",
+      link_email_text: contextProfile.link_email_text || "",
+      link_calendly: contextProfile.link_calendly || "",
+      link_calendly_text: contextProfile.link_calendly_text || "",
+      link_producthunt: contextProfile.link_producthunt || "",
+      link_producthunt_text: contextProfile.link_producthunt_text || "",
+      link_appstore: contextProfile.link_appstore || "",
+      link_appstore_text: contextProfile.link_appstore_text || "",
+      link_playstore: contextProfile.link_playstore || "",
+      link_playstore_text: contextProfile.link_playstore_text || "",
+      link_newsletter: contextProfile.link_newsletter || "",
+      link_newsletter_text: contextProfile.link_newsletter_text || "",
+      link_press: contextProfile.link_press || "",
+      link_press_text: contextProfile.link_press_text || "",
+      link_other_label: contextProfile.link_other_label || "",
+      link_other_url: contextProfile.link_other_url || "",
     });
   }, [contextProfile]);
 
@@ -154,9 +194,9 @@ export default function EditPage() {
       </div>
 
       <div style={styles.tabsBar}>
-        {(["startup", "founder"] as EditTab[]).map((tab) => (
+        {(["startup", "founder", "links"] as EditTab[]).map((tab) => (
           <button key={tab} style={{ ...styles.tab, ...(activeTab === tab ? styles.tabActive : {}) }} onClick={() => setActiveTab(tab)}>
-            {tab === "startup" ? "Startup" : "Founder CV"}
+            {tab === "startup" ? "Startup" : tab === "founder" ? "Founder CV" : "Links"}
           </button>
         ))}
       </div>
@@ -182,6 +222,9 @@ export default function EditPage() {
             updateEducation={updateEducation}
             removeEducation={removeEducation}
           />
+        )}
+        {activeTab === "links" && (
+          <EditLinksTab data={data} update={update} />
         )}
       </div>
     </div>
