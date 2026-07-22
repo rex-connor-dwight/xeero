@@ -138,10 +138,12 @@ function JoinPageContent() {
         permissions: invite.permissions || [],
       });
 
-    if (profileError) {
-      setProfileSaving(false);
-      return;
-    }
+      if (profileError) {
+        console.error("team_profiles insert error:", JSON.stringify(profileError));
+        setProfileSaving(false);
+        setAuthError(profileError.message || "Something went wrong saving your profile.");
+        return;
+      }
 
     // Mark invite as accepted
     await supabase
@@ -289,6 +291,8 @@ function JoinPageContent() {
             </button>
           </>
         )}
+
+        {authError && <p style={{ ...styles.errorText, marginTop: "10px" }}>{authError}</p>}
 
         {step === "profile" && (
           <>
