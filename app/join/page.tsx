@@ -29,7 +29,7 @@ function JoinPageContent() {
   const [invite, setInvite] = useState<InviteData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [step, setStep] = useState<"invite" | "auth" | "profile" | "done">("invite");
+  const [step, setStep] = useState<"invite" | "auth" | "confirm-email" | "profile" | "done">("invite");
 
   // Auth fields
   const [email, setEmail] = useState("");
@@ -57,7 +57,7 @@ function JoinPageContent() {
       .select("*, profiles(startup_name, founder_name, logo_url, slug)")
       .eq("token", token)
       .single()
-      .then(({ data, error: err }) => {
+      .then(async ({ data, error: err }) => {
         if (err || !data) {
           setError("This invite link is invalid or has expired.");
           setLoading(false);
@@ -78,6 +78,13 @@ function JoinPageContent() {
 
         setInvite(data as any);
         setEmail(data.email);
+
+        // Check if they're already authenticated (e.g. returning after confirming email)
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setStep("profile");
+        }
+
         setLoading(false);
       });
   }, [token]);
@@ -88,8 +95,6 @@ function JoinPageContent() {
     setAuthError("");
 
     try {
-      let userId = "";
-
       if (authMode === "signup") {
         const { data, error: signupError } = await supabase.auth.signUp({
           email,
@@ -97,20 +102,25 @@ function JoinPageContent() {
           options: { emailRedirectTo: `https://xeero.me/join?token=${token}` },
         });
         if (signupError) { setAuthError(signupError.message); setAuthLoading(false); return; }
-        userId = data.user?.id || "";
+
+        // If there's no session yet, Supabase requires email confirmation first
+        if (!data.session) {
+          setStep("confirm-email");
+          setAuthLoading(false);
+          return;
+        }
+
+        setStep("profile");
       } else {
         const { data, error: loginError } = await supabase.auth.signInWithPassword({ email, password });
         if (loginError) { setAuthError(loginError.message); setAuthLoading(false); return; }
-        userId = data.user?.id || "";
+        if (!data.user) {
+          setAuthError("Something went wrong. Please try again.");
+          setAuthLoading(false);
+          return;
+        }
+        setStep("profile");
       }
-
-      if (!userId) {
-        setAuthError("Something went wrong. Please try again.");
-        setAuthLoading(false);
-        return;
-      }
-
-      setStep("profile");
     } catch {
       setAuthError("Something went wrong. Please try again.");
     }
@@ -169,7 +179,7 @@ function JoinPageContent() {
 
     setProfileSaving(false);
   };
-  
+
   if (loading) {
     return (
       <div style={styles.page}>
@@ -255,6 +265,21 @@ function JoinPageContent() {
           </>
         )}
 
+        {step === "confirm-email" && (
+          <>
+            <div style={styles.successIcon}>
+              <Lock size={28} color="#38a169" />
+            </div>
+            <h1 style={styles.title}>Check your email</h1>
+            <p style={styles.subtitle}>
+              We sent a confirmation link to <strong>{email}</strong>. Click the link in that email to confirm your account, then come back to this page to finish setting up your profile.
+            </p>
+            <button style={styles.btn} onClick={() => setStep("auth")}>
+              Back
+            </button>
+          </>
+        )}
+
         {step === "auth" && (
           <>
             <h1 style={styles.title}>
@@ -307,8 +332,6 @@ function JoinPageContent() {
           </>
         )}
 
-        {authError && <p style={{ ...styles.errorText, marginTop: "10px" }}>{authError}</p>}
-
         {step === "profile" && (
           <>
             <h1 style={styles.title}>Set up your profile</h1>
@@ -345,6 +368,8 @@ function JoinPageContent() {
               value={twitter}
               onChange={(e) => setTwitter(e.target.value)}
             />
+
+            {authError && <p style={styles.errorText}>{authError}</p>}
 
             <button
               style={{ ...styles.btn, opacity: name && !profileSaving ? 1 : 0.5 }}
