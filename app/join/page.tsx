@@ -120,41 +120,56 @@ function JoinPageContent() {
   const handleProfileSave = async () => {
     if (!name || !invite) return;
     setProfileSaving(true);
+    setAuthError("");
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setProfileSaving(false); return; }
-
-    // Create team profile
-    const { error: profileError } = await supabase
-      .from("team_profiles")
-      .insert({
-        user_id: user.id,
-        profile_id: invite.profile_id,
-        name,
-        role: invite.role,
-        bio: bio || null,
-        linkedin_url: linkedin || null,
-        twitter_url: twitter || null,
-        permissions: invite.permissions || [],
-      });
-
-      if (profileError) {
-        console.error("team_profiles insert error:", JSON.stringify(profileError));
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.error("getUser error:", userError);
+        setAuthError("Could not verify your session. Please refresh and try again.");
         setProfileSaving(false);
-        setAuthError(profileError.message || "Something went wrong saving your profile.");
         return;
       }
 
-    // Mark invite as accepted
-    await supabase
-      .from("team_invites")
-      .update({ accepted: true })
-      .eq("token", token!);
+      const { error: profileError } = await supabase
+        .from("team_profiles")
+        .insert({
+          user_id: user.id,
+          profile_id: invite.profile_id,
+          name,
+          role: invite.role,
+          bio: bio || null,
+          linkedin_url: linkedin || null,
+          twitter_url: twitter || null,
+          permissions: invite.permissions || [],
+        });
 
-    setStep("done");
+      if (profileError) {
+        console.error("team_profiles insert error:", JSON.stringify(profileError));
+        setAuthError(profileError.message || "Something went wrong saving your profile.");
+        setProfileSaving(false);
+        return;
+      }
+
+      const { error: acceptError } = await supabase
+        .from("team_invites")
+        .update({ accepted: true })
+        .eq("token", token!);
+
+      if (acceptError) {
+        console.error("team_invites update error:", JSON.stringify(acceptError));
+        // Profile was created successfully, so still proceed to done even if this step fails
+      }
+
+      setStep("done");
+    } catch (err) {
+      console.error("handleProfileSave unexpected error:", err);
+      setAuthError("Something unexpected went wrong. Please try again, or contact support if this keeps happening.");
+    }
+
     setProfileSaving(false);
   };
-
+  
   if (loading) {
     return (
       <div style={styles.page}>
