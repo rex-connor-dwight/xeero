@@ -28,6 +28,7 @@ function JoinPageContent() {
 
   const [invite, setInvite] = useState<InviteData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [timedOut, setTimedOut] = useState(false);
   const [error, setError] = useState("");
   const [step, setStep] = useState<"invite" | "auth" | "confirm-email" | "profile" | "done">("invite");
 
@@ -52,42 +53,70 @@ function JoinPageContent() {
       return;
     }
 
-    supabase
-      .from("team_invites")
-      .select("*, profiles(startup_name, founder_name, logo_url, slug)")
-      .eq("token", token)
-      .single()
-      .then(async ({ data, error: err }) => {
-        if (err || !data) {
-          setError("This invite link is invalid or has expired.");
-          setLoading(false);
-          return;
-        }
+    let inviteLoaded = false;
 
-        if (data.accepted) {
-          setError("This invite has already been accepted.");
-          setLoading(false);
-          return;
-        }
+    const loadInvite = async () => {
+      const { data, error: err } = await supabase
+        .from("team_invites")
+        .select("*, profiles(startup_name, founder_name, logo_url, slug)")
+        .eq("token", token)
+        .single();
 
-        if (new Date(data.expires_at) < new Date()) {
-          setError("This invite link has expired. Ask the founder to send a new one.");
-          setLoading(false);
-          return;
-        }
-
-        setInvite(data as any);
-        setEmail(data.email);
-
-        // Check if they're already authenticated (e.g. returning after confirming email)
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          setStep("profile");
-        }
-
+      if (err || !data) {
+        setError("This invite link is invalid or has expired.");
         setLoading(false);
-      });
+        return;
+      }
+
+      if (data.accepted) {
+        setError("This invite has already been accepted.");
+        setLoading(false);
+        return;
+      }
+
+      if (new Date(data.expires_at) < new Date()) {
+        setError("This invite link has expired. Ask the founder to send a new one.");
+        setLoading(false);
+        return;
+      }
+
+      setInvite(data as any);
+      setEmail(data.email);
+      inviteLoaded = true;
+
+      // Check current session in case it's already established
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setStep("profile");
+      }
+
+      setLoading(false);
+    };
+
+    loadInvite();
+
+    // Listen for auth state changes — this catches the case where Supabase
+    // is still parsing tokens from the URL hash after an email confirmation
+    // redirect, which happens asynchronously and can arrive after our
+    // initial getSession() check above already ran.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session?.user && inviteLoaded) {
+        setStep("profile");
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [token]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (loading) setTimedOut(true);
+    }, 8000);
+    return () => clearTimeout(timeout);
+  }, [loading]);
 
   const handleAuth = async () => {
     if (!email || !password || !invite) return;
@@ -168,7 +197,6 @@ function JoinPageContent() {
 
       if (acceptError) {
         console.error("team_invites update error:", JSON.stringify(acceptError));
-        // Profile was created successfully, so still proceed to done even if this step fails
       }
 
       setStep("done");
@@ -183,7 +211,19 @@ function JoinPageContent() {
   if (loading) {
     return (
       <div style={styles.page}>
-        <div style={styles.loadingDot} />
+        <div style={styles.card}>
+          <div style={styles.loadingDot} />
+          {timedOut && (
+            <>
+              <p style={{ ...styles.subtitle, textAlign: "center", marginTop: "12px" }}>
+                This is taking longer than expected. If you just confirmed your email, try refreshing this page.
+              </p>
+              <button style={styles.btn} onClick={() => window.location.reload()}>
+                Refresh
+              </button>
+            </>
+          )}
+        </div>
       </div>
     );
   }
@@ -398,7 +438,7 @@ type Styles = { [key: string]: React.CSSProperties };
 
 const styles: Styles = {
   page: { minHeight: "100vh", backgroundColor: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" },
-  loadingDot: { width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#cccccc" },
+  loadingDot: { width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#cccccc", margin: "0 auto" },
   card: { backgroundColor: "#ffffff", borderRadius: "20px", padding: "36px", maxWidth: "440px", width: "100%", border: "1px solid #f0f0f0", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", gap: "16px" },
   startupRow: { display: "flex", alignItems: "center", gap: "12px", padding: "14px", backgroundColor: "#f9f9f9", borderRadius: "10px", border: "1px solid #f0f0f0" },
   startupLogo: { width: "44px", height: "44px", borderRadius: "10px", backgroundColor: "#111111", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 },
