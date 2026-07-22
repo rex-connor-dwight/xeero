@@ -3,18 +3,11 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useXeero } from "@/lib/context";
-import {
-  Users,
-  Plus,
-  Mail,
-  Trash2,
-  CheckCircle,
-  Clock,
-  X,
-  Send,
-  Pencil,
-} from "lucide-react";
+import { Users, Plus } from "lucide-react";
 import UpgradeGateModal from "@/components/dashboard/UpgradeGateModal";
+import InviteForm, { ROLE_PERMISSIONS } from "@/components/dashboard/team/InviteForm";
+import MemberRow from "@/components/dashboard/team/MemberRow";
+import PendingInvites from "@/components/dashboard/team/PendingInvites";
 
 type TeamMember = {
   id: string;
@@ -35,32 +28,6 @@ type Invite = {
   created_at: string;
 };
 
-const ROLE_PERMISSIONS: Record<string, string[]> = {
-  "CMO": ["waitlist_email", "view_stats"],
-  "CTO": ["data_room", "deck_upload", "view_stats"],
-  "COO": ["waitlist_email", "data_room", "view_stats"],
-  "Co-founder": ["waitlist_email", "data_room", "deck_upload", "view_stats"],
-  "Custom": [],
-};
-
-const ALL_PERMISSIONS = [
-  { key: "waitlist_email", label: "Waitlist Emailer" },
-  { key: "data_room", label: "Data Room" },
-  { key: "deck_upload", label: "Deck Upload" },
-  { key: "view_stats", label: "View Stats" },
-  { key: "validate", label: "Validation" },
-  { key: "funding", label: "Funding" },
-];
-
-function timeAgo(dateString: string) {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
-}
-
 export default function TeamPage() {
   const { profile, profileLoading, isTeamsActive } = useXeero();
   const [members, setMembers] = useState<TeamMember[]>([]);
@@ -72,25 +39,25 @@ export default function TeamPage() {
   // Invite form
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("CMO");
+  const [customRoleLabel, setCustomRoleLabel] = useState("");
   const [invitePermissions, setInvitePermissions] = useState<string[]>(ROLE_PERMISSIONS["CMO"]);
   const [inviteSending, setInviteSending] = useState(false);
   const [inviteSuccess, setInviteSuccess] = useState(false);
   const [inviteError, setInviteError] = useState("");
 
-  // Reassign permissions
+  // Edit member
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+  const [editRole, setEditRole] = useState("");
   const [editPermissions, setEditPermissions] = useState<string[]>([]);
   const [savingPermissions, setSavingPermissions] = useState(false);
 
   const fetchData = async () => {
     if (!profile) return;
     setLoading(true);
-
     const [membersRes, invitesRes] = await Promise.all([
       supabase.from("team_profiles").select("*").eq("profile_id", profile.id).order("created_at", { ascending: true }),
       supabase.from("team_invites").select("*").eq("profile_id", profile.id).order("created_at", { ascending: false }),
     ]);
-
     setMembers(membersRes.data || []);
     setInvites(invitesRes.data || []);
     setLoading(false);
@@ -103,20 +70,20 @@ export default function TeamPage() {
   const handleRoleChange = (role: string) => {
     setInviteRole(role);
     setInvitePermissions(ROLE_PERMISSIONS[role] || []);
+    if (role !== "Custom") setCustomRoleLabel("");
   };
 
   const togglePermission = (key: string) => {
-    setInvitePermissions((prev) =>
-      prev.includes(key) ? prev.filter((p) => p !== key) : [...prev, key]
-    );
+    setInvitePermissions((prev) => prev.includes(key) ? prev.filter((p) => p !== key) : [...prev, key]);
   };
 
   const handleSendInvite = async () => {
-    if (!isTeamsActive) {
-      setShowGate(true);
-      return;
-    }
+    if (!isTeamsActive) { setShowGate(true); return; }
     if (!inviteEmail || !inviteRole || !profile) return;
+
+    const finalRole = inviteRole === "Custom" ? customRoleLabel.trim() : inviteRole;
+    if (!finalRole) return;
+
     setInviteSending(true);
     setInviteError("");
 
@@ -126,16 +93,8 @@ export default function TeamPage() {
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-team-invite`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({
-            profile_id: profile.id,
-            email: inviteEmail,
-            role: inviteRole,
-            permissions: invitePermissions,
-          }),
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ profile_id: profile.id, email: inviteEmail, role: finalRole, permissions: invitePermissions }),
         }
       );
       const data = await res.json();
@@ -145,6 +104,7 @@ export default function TeamPage() {
         setInviteSuccess(true);
         setInviteEmail("");
         setInviteRole("CMO");
+        setCustomRoleLabel("");
         setInvitePermissions(ROLE_PERMISSIONS["CMO"]);
         await fetchData();
         setTimeout(() => setInviteSuccess(false), 4000);
@@ -156,55 +116,39 @@ export default function TeamPage() {
   };
 
   const handleDeleteMember = async (id: string) => {
-    if (!isTeamsActive) {
-      setShowGate(true);
-      return;
-    }
+    if (!isTeamsActive) { setShowGate(true); return; }
     await supabase.from("team_profiles").delete().eq("id", id);
     await fetchData();
   };
 
   const handleDeleteInvite = async (id: string) => {
-    if (!isTeamsActive) {
-      setShowGate(true);
-      return;
-    }
+    if (!isTeamsActive) { setShowGate(true); return; }
     await supabase.from("team_invites").delete().eq("id", id);
     await fetchData();
   };
 
-  const startEditingPermissions = (member: TeamMember) => {
-    if (!isTeamsActive) {
-      setShowGate(true);
-      return;
-    }
+  const startEditingMember = (member: TeamMember) => {
+    if (!isTeamsActive) { setShowGate(true); return; }
     setEditingMemberId(member.id);
+    setEditRole(member.role);
     setEditPermissions(member.permissions || []);
   };
 
   const toggleEditPermission = (key: string) => {
-    setEditPermissions((prev) =>
-      prev.includes(key) ? prev.filter((p) => p !== key) : [...prev, key]
-    );
+    setEditPermissions((prev) => prev.includes(key) ? prev.filter((p) => p !== key) : [...prev, key]);
   };
 
-  const handleSavePermissions = async (memberId: string) => {
-    if (!isTeamsActive) {
-      setShowGate(true);
-      return;
-    }
+  const handleSaveMember = async (memberId: string) => {
+    if (!isTeamsActive) { setShowGate(true); return; }
+    if (!editRole.trim()) return;
     setSavingPermissions(true);
     await supabase
       .from("team_profiles")
-      .update({ permissions: editPermissions })
+      .update({ role: editRole.trim(), permissions: editPermissions })
       .eq("id", memberId);
     await fetchData();
     setSavingPermissions(false);
     setEditingMemberId(null);
-  };
-
-  const handleShowInviteForm = () => {
-    setShowInviteForm(!showInviteForm);
   };
 
   if (profileLoading || loading) {
@@ -225,79 +169,29 @@ export default function TeamPage() {
             <p style={styles.headerSub}>{members.length} member{members.length !== 1 ? "s" : ""} · {pendingInvites.length} pending invite{pendingInvites.length !== 1 ? "s" : ""}</p>
           </div>
         </div>
-        <button style={styles.inviteBtn} onClick={handleShowInviteForm}>
+        <button style={styles.inviteBtn} onClick={() => setShowInviteForm(!showInviteForm)}>
           <Plus size={14} />Invite
         </button>
       </div>
 
-      {/* Invite form */}
       {showInviteForm && (
-        <div style={styles.inviteCard}>
-          <div style={styles.inviteCardHeader}>
-            <p style={styles.inviteCardTitle}>Invite a team member</p>
-            <button style={styles.closeBtn} onClick={() => setShowInviteForm(false)}>
-              <X size={16} color="#888888" />
-            </button>
-          </div>
-
-          {inviteSuccess && (
-            <div style={styles.successBanner}>
-              <CheckCircle size={14} color="#38a169" />
-              <span>Invite sent successfully.</span>
-            </div>
-          )}
-
-          <label style={styles.label}>Email address</label>
-          <input
-            style={styles.input}
-            type="email"
-            placeholder="teammate@email.com"
-            value={inviteEmail}
-            onChange={(e) => setInviteEmail(e.target.value)}
-          />
-
-          <label style={styles.label}>Role</label>
-          <select
-            style={styles.select}
-            value={inviteRole}
-            onChange={(e) => handleRoleChange(e.target.value)}
-          >
-            {Object.keys(ROLE_PERMISSIONS).map((r) => (
-              <option key={r} value={r}>{r}</option>
-            ))}
-          </select>
-
-          <label style={styles.label}>Permissions</label>
-          <div style={styles.permissionsGrid}>
-            {ALL_PERMISSIONS.map((p) => (
-              <button
-                key={p.key}
-                style={{
-                  ...styles.permissionBtn,
-                  ...(invitePermissions.includes(p.key) ? styles.permissionBtnActive : {}),
-                }}
-                onClick={() => togglePermission(p.key)}
-              >
-                {invitePermissions.includes(p.key) && <CheckCircle size={12} color="#38a169" />}
-                {p.label}
-              </button>
-            ))}
-          </div>
-
-          {inviteError && <p style={styles.errorText}>{inviteError}</p>}
-
-          <button
-            style={{ ...styles.sendBtn, opacity: inviteEmail && inviteRole && !inviteSending ? 1 : 0.5 }}
-            onClick={handleSendInvite}
-            disabled={!inviteEmail || !inviteRole || inviteSending}
-          >
-            <Send size={13} />
-            {inviteSending ? "Sending..." : "Send Invite"}
-          </button>
-        </div>
+        <InviteForm
+          onClose={() => setShowInviteForm(false)}
+          inviteEmail={inviteEmail}
+          setInviteEmail={setInviteEmail}
+          inviteRole={inviteRole}
+          onRoleChange={handleRoleChange}
+          customRoleLabel={customRoleLabel}
+          setCustomRoleLabel={setCustomRoleLabel}
+          invitePermissions={invitePermissions}
+          togglePermission={togglePermission}
+          inviteError={inviteError}
+          inviteSuccess={inviteSuccess}
+          inviteSending={inviteSending}
+          onSend={handleSendInvite}
+        />
       )}
 
-      {/* Active members */}
       <p style={styles.sectionLabel}>Active members</p>
       {members.length === 0 ? (
         <div style={styles.emptyCard}>
@@ -307,113 +201,25 @@ export default function TeamPage() {
       ) : (
         <div style={styles.membersList}>
           {members.map((m) => (
-            <div key={m.id} style={styles.memberRowWrapper}>
-              <div style={styles.memberRow}>
-                <div style={styles.memberAvatar}>
-                  {m.photo_url ? (
-                    <img src={m.photo_url} alt="" style={styles.memberPhoto} />
-                  ) : (
-                    <span style={styles.memberInitial}>{m.name[0].toUpperCase()}</span>
-                  )}
-                </div>
-                <div style={styles.memberInfo}>
-                  <p style={styles.memberName}>{m.name}</p>
-                  <p style={styles.memberRole}>{m.role}</p>
-                  <div style={styles.permissionTags}>
-                    {(m.permissions || []).length === 0 ? (
-                      <span style={styles.noPermissionTag}>No permissions assigned</span>
-                    ) : (
-                      (m.permissions || []).map((p) => (
-                        <span key={p} style={styles.permissionTag}>
-                          {ALL_PERMISSIONS.find((a) => a.key === p)?.label || p}
-                        </span>
-                      ))
-                    )}
-                  </div>
-                </div>
-                <div style={styles.memberActions}>
-                  <button
-                    style={styles.editBtn}
-                    onClick={() => startEditingPermissions(m)}
-                  >
-                    <Pencil size={13} />
-                  </button>
-                  <button style={styles.deleteBtn} onClick={() => handleDeleteMember(m.id)}>
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Reassign permissions editor */}
-              {editingMemberId === m.id && (
-                <div style={styles.editPanel}>
-                  <p style={styles.editPanelTitle}>Reassign permissions for {m.name}</p>
-                  <div style={styles.permissionsGrid}>
-                    {ALL_PERMISSIONS.map((p) => (
-                      <button
-                        key={p.key}
-                        style={{
-                          ...styles.permissionBtn,
-                          ...(editPermissions.includes(p.key) ? styles.permissionBtnActive : {}),
-                        }}
-                        onClick={() => toggleEditPermission(p.key)}
-                      >
-                        {editPermissions.includes(p.key) && <CheckCircle size={12} color="#38a169" />}
-                        {p.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div style={styles.editPanelActions}>
-                    <button
-                      style={styles.cancelEditBtn}
-                      onClick={() => setEditingMemberId(null)}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      style={{ ...styles.sendBtn, opacity: savingPermissions ? 0.6 : 1 }}
-                      onClick={() => handleSavePermissions(m.id)}
-                      disabled={savingPermissions}
-                    >
-                      {savingPermissions ? "Saving..." : "Save Changes"}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            <MemberRow
+              key={m.id}
+              member={m}
+              isEditing={editingMemberId === m.id}
+              editRole={editRole}
+              setEditRole={setEditRole}
+              editPermissions={editPermissions}
+              toggleEditPermission={toggleEditPermission}
+              savingPermissions={savingPermissions}
+              onStartEdit={startEditingMember}
+              onCancelEdit={() => setEditingMemberId(null)}
+              onSave={handleSaveMember}
+              onDelete={handleDeleteMember}
+            />
           ))}
         </div>
       )}
 
-      {/* Pending invites */}
-      {pendingInvites.length > 0 && (
-        <>
-          <p style={styles.sectionLabel}>Pending invites</p>
-          <div style={styles.membersList}>
-            {pendingInvites.map((inv) => (
-              <div key={inv.id} style={styles.memberRow}>
-                <div style={{ ...styles.memberAvatar, backgroundColor: "#fffbeb" }}>
-                  <Mail size={16} color="#d69e2e" />
-                </div>
-                <div style={styles.memberInfo}>
-                  <p style={styles.memberName}>{inv.email}</p>
-                  <p style={styles.memberRole}>{inv.role}</p>
-                  <div style={styles.inviteStatus}>
-                    <Clock size={11} color="#d69e2e" />
-                    <span style={styles.inviteStatusText}>
-                      Sent {timeAgo(inv.created_at)} · expires {new Date(inv.expires_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-                <button style={styles.deleteBtn} onClick={() => handleDeleteInvite(inv.id)}>
-                  <Trash2 size={13} />
-                </button>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
+      <PendingInvites invites={pendingInvites} onDelete={handleDeleteInvite} />
     </div>
   );
 }
@@ -429,41 +235,8 @@ const styles: Styles = {
   headerTitle: { fontSize: "20px", fontWeight: "700", color: "#111111", margin: "0 0 2px 0" },
   headerSub: { fontSize: "13px", color: "#888888", margin: "0" },
   inviteBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "9px 16px", fontSize: "13px", fontWeight: "600", color: "#ffffff", backgroundColor: "#111111", border: "none", borderRadius: "8px", cursor: "pointer" },
-  inviteCard: { backgroundColor: "#ffffff", borderRadius: "14px", padding: "20px", border: "1px solid #f0f0f0", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", marginBottom: "24px", display: "flex", flexDirection: "column", gap: "12px" },
-  inviteCardHeader: { display: "flex", alignItems: "center", justifyContent: "space-between" },
-  inviteCardTitle: { fontSize: "14px", fontWeight: "700", color: "#111111", margin: "0" },
-  closeBtn: { background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center" },
-  successBanner: { display: "flex", alignItems: "center", gap: "8px", padding: "10px 14px", backgroundColor: "#f0fff4", border: "1px solid #c6f6d5", borderRadius: "8px", fontSize: "13px", color: "#38a169", fontWeight: "500" },
-  label: { fontSize: "12px", fontWeight: "500", color: "#555555", display: "block" },
-  input: { width: "100%", padding: "10px 13px", fontSize: "13px", border: "1px solid #e5e5e5", borderRadius: "8px", outline: "none", backgroundColor: "#fafafa", boxSizing: "border-box", color: "#111111" },
-  select: { width: "100%", padding: "10px 13px", fontSize: "13px", border: "1px solid #e5e5e5", borderRadius: "8px", outline: "none", backgroundColor: "#fafafa", boxSizing: "border-box", color: "#111111", appearance: "none" },
-  permissionsGrid: { display: "flex", flexWrap: "wrap", gap: "8px" },
-  permissionBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "7px 12px", fontSize: "12px", fontWeight: "500", color: "#555555", backgroundColor: "#f5f5f5", border: "1px solid #eeeeee", borderRadius: "8px", cursor: "pointer" },
-  permissionBtnActive: { backgroundColor: "#f0fff4", border: "1px solid #c6f6d5", color: "#38a169" },
-  errorText: { fontSize: "12px", color: "#e53e3e", margin: "0" },
-  sendBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", padding: "10px 20px", fontSize: "13px", fontWeight: "600", color: "#ffffff", backgroundColor: "#111111", border: "none", borderRadius: "8px", cursor: "pointer" },
   sectionLabel: { fontSize: "11px", fontWeight: "600", color: "#aaaaaa", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px" },
   emptyCard: { backgroundColor: "#ffffff", borderRadius: "14px", padding: "40px 32px", border: "1px solid #f0f0f0", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", textAlign: "center", marginBottom: "24px" },
   emptyText: { fontSize: "13px", color: "#cccccc", margin: "0" },
   membersList: { backgroundColor: "#ffffff", borderRadius: "14px", border: "1px solid #f0f0f0", overflow: "hidden", marginBottom: "24px" },
-  memberRowWrapper: { borderBottom: "1px solid #f9f9f9" },
-  memberRow: { display: "flex", alignItems: "flex-start", gap: "12px", padding: "16px 18px" },
-  memberAvatar: { width: "40px", height: "40px", borderRadius: "10px", backgroundColor: "#f0f0f0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" },
-  memberPhoto: { width: "100%", height: "100%", objectFit: "cover" },
-  memberInitial: { fontSize: "15px", fontWeight: "700", color: "#666666" },
-  memberInfo: { flex: 1 },
-  memberName: { fontSize: "14px", fontWeight: "600", color: "#111111", margin: "0 0 2px 0" },
-  memberRole: { fontSize: "12px", color: "#888888", margin: "0 0 8px 0" },
-  permissionTags: { display: "flex", flexWrap: "wrap", gap: "4px" },
-  permissionTag: { fontSize: "10px", fontWeight: "500", color: "#3182ce", backgroundColor: "#ebf8ff", padding: "2px 8px", borderRadius: "99px", border: "1px solid #bee3f8" },
-  noPermissionTag: { fontSize: "10px", fontWeight: "500", color: "#aaaaaa", fontStyle: "italic" },
-  memberActions: { display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 },
-  editBtn: { width: "32px", height: "32px", borderRadius: "6px", backgroundColor: "#f5f5f5", border: "1px solid #eeeeee", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#111111", flexShrink: 0 },
-  editPanel: { padding: "16px 18px", backgroundColor: "#fafafa", borderTop: "1px solid #f0f0f0", display: "flex", flexDirection: "column", gap: "12px" },
-  editPanelTitle: { fontSize: "12px", fontWeight: "600", color: "#666666", margin: "0" },
-  editPanelActions: { display: "flex", gap: "8px", justifyContent: "flex-end" },
-  cancelEditBtn: { padding: "9px 16px", fontSize: "13px", fontWeight: "500", color: "#888888", backgroundColor: "#ffffff", border: "1px solid #e5e5e5", borderRadius: "8px", cursor: "pointer" },
-  inviteStatus: { display: "flex", alignItems: "center", gap: "4px" },
-  inviteStatusText: { fontSize: "11px", color: "#d69e2e" },
-  deleteBtn: { width: "32px", height: "32px", borderRadius: "6px", backgroundColor: "#fff5f5", border: "1px solid #fed7d7", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#e53e3e", flexShrink: 0 },
 };
