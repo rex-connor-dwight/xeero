@@ -15,6 +15,7 @@ import {
   Sparkles,
   Crown,
   Speaker,
+  Trash2,
 } from "lucide-react";
 
 const ADMIN_EMAILS = ["connor@xeero.me"];
@@ -35,6 +36,7 @@ const navItems: NavItem[] = [
   { label: "Roadmap", icon: <Sparkles size={16} />, path: "/crm/roadmap" },
   { label: "Services", icon: <Crown size={16} />, path: "/crm/services" },
   { label: "Fireside", icon: <Speaker size={16} />, path: "/crm/fireside" },
+  { label: "Deletions", icon: <Trash2 size={16} />, path: "/crm/deletions" },
 ];
 
 export default function CrmLayout({ children }: { children: React.ReactNode }) {

@@ -7,6 +7,7 @@ import { useXeero } from "@/lib/context";
 import { Settings, User, ExternalLink, AlertTriangle, Crown, Users, Check } from "lucide-react";
 import AccountSettings from "@/components/dashboard/AccountSettings";
 import VisibilityToggles from "@/components/dashboard/VisibilityToggles";
+import DeletionRequest from "@/components/dashboard/DeletionRequest";
 
 declare global {
   interface Window {
@@ -197,22 +198,7 @@ export default function SettingsPage() {
       </div>
 
       <p style={styles.sectionLabel}>Danger Zone</p>
-      <div style={{ ...styles.card, ...styles.dangerCard }}>
-        <div style={styles.settingRow}>
-          <div style={styles.settingLeft}>
-            <div style={{ ...styles.settingIcon, backgroundColor: "#fff5f5" }}>
-              <AlertTriangle size={15} color="#e53e3e" />
-            </div>
-            <div>
-              <p style={{ ...styles.settingTitle, color: "#e53e3e" }}>Delete account</p>
-              <p style={styles.settingValue}>
-                To delete your account and all data, email us at{" "}
-                <a href="mailto:hello@xeero.me" style={styles.dangerLink}>hello@xeero.me</a>
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <DeletionRequest />
 
       {/* ── Upgrade Modal ── */}
       {showUpgradeModal && (
