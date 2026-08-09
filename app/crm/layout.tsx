@@ -16,6 +16,7 @@ import {
   Crown,
   Speaker,
   Trash2,
+  Calendar,
 } from "lucide-react";
 
 const ADMIN_EMAILS = ["connor@xeero.me"];
@@ -33,6 +34,7 @@ const navItems: NavItem[] = [
   { label: "Finance", icon: <DollarSign size={16} />, path: "/crm/finance" },
   { label: "Broadcast", icon: <Mail size={16} />, path: "/crm/broadcast" },
   { label: "Opportunities", icon: <Zap size={16} />, path: "/crm/opportunities" },
+  { label: "Advisory", icon: <Calendar size={16} />, path: "/crm/advisory" },
   { label: "Roadmap", icon: <Sparkles size={16} />, path: "/crm/roadmap" },
   { label: "Services", icon: <Crown size={16} />, path: "/crm/services" },
   { label: "Fireside", icon: <Speaker size={16} />, path: "/crm/fireside" },
