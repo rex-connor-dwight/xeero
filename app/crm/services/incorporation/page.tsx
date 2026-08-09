@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useXeero } from "@/lib/context";
-import { Building2, ArrowLeft, ChevronDown, ChevronUp, CheckCircle } from "lucide-react";
+import { Building2, ArrowLeft, ChevronDown, ChevronUp, CheckCircle, Send } from "lucide-react";
 
 const ADMIN_EMAILS = ["connor@xeero.me"];
 
@@ -38,7 +38,9 @@ export default function CrmIncorporationPage() {
   const [dataLoading, setDataLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [notifyingId, setNotifyingId] = useState<string | null>(null);
   const [adminNotes, setAdminNotes] = useState<Record<string, string>>({});
+  const [notifySent, setNotifySent] = useState<Record<string, boolean>>({});
 
   const fetchData = async () => {
     const { data } = await supabase
@@ -53,6 +55,32 @@ export default function CrmIncorporationPage() {
     if (!loading && user && ADMIN_EMAILS.includes(user.email || "")) fetchData();
   }, [loading, user]);
 
+  const sendNotification = async (id: string) => {
+    setNotifyingId(id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/notify-incorporation-update`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ request_id: id }),
+        }
+      );
+      const data = await res.json();
+      if (data.success) {
+        setNotifySent((prev) => ({ ...prev, [id]: true }));
+        setTimeout(() => setNotifySent((prev) => ({ ...prev, [id]: false })), 4000);
+      }
+    } catch (err) {
+      console.error("notify error:", err);
+    }
+    setNotifyingId(null);
+  };
+
   const handleStatusChange = async (id: string, status: string) => {
     setSavingId(id);
     await supabase
@@ -61,9 +89,10 @@ export default function CrmIncorporationPage() {
       .eq("id", id);
     await fetchData();
     setSavingId(null);
+    await sendNotification(id);
   };
 
-  const handleSaveNotes = async (id: string) => {
+  const handleSaveNotesAndNotify = async (id: string) => {
     setSavingId(id);
     await supabase
       .from("incorporation_requests")
@@ -71,6 +100,7 @@ export default function CrmIncorporationPage() {
       .eq("id", id);
     await fetchData();
     setSavingId(null);
+    await sendNotification(id);
   };
 
   if (loading || dataLoading) {
@@ -150,6 +180,7 @@ export default function CrmIncorporationPage() {
 
                     <div style={styles.statusRow}>
                       <p style={styles.fieldLabel}>Update Status</p>
+                      <p style={styles.fieldHint}>Changing the status automatically emails the founder.</p>
                       <div style={styles.statusGrid}>
                         {STATUS_OPTIONS.map((opt) => (
                           <button
@@ -159,7 +190,7 @@ export default function CrmIncorporationPage() {
                               ...(req.status === opt.value ? { backgroundColor: opt.bg, border: `1px solid ${opt.border}`, color: opt.color, fontWeight: 600 } : {}),
                             }}
                             onClick={() => handleStatusChange(req.id, opt.value)}
-                            disabled={savingId === req.id}
+                            disabled={savingId === req.id || notifyingId === req.id}
                           >
                             {opt.label}
                           </button>
@@ -176,12 +207,18 @@ export default function CrmIncorporationPage() {
                         onChange={(e) => setAdminNotes((prev) => ({ ...prev, [req.id]: e.target.value }))}
                       />
                       <button
-                        style={{ ...styles.saveBtn, opacity: savingId === req.id ? 0.6 : 1 }}
-                        onClick={() => handleSaveNotes(req.id)}
-                        disabled={savingId === req.id}
+                        style={{ ...styles.saveBtn, opacity: (savingId === req.id || notifyingId === req.id) ? 0.6 : 1 }}
+                        onClick={() => handleSaveNotesAndNotify(req.id)}
+                        disabled={savingId === req.id || notifyingId === req.id}
                       >
-                        <CheckCircle size={13} />
-                        {savingId === req.id ? "Saving..." : "Save Notes"}
+                        {notifySent[req.id] ? (
+                          <><CheckCircle size={13} />Notified</>
+                        ) : (
+                          <>
+                            <Send size={13} />
+                            {savingId === req.id ? "Saving..." : notifyingId === req.id ? "Notifying..." : "Save & Notify Founder"}
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -220,7 +257,8 @@ const styles: Styles = {
   detailLabel: { fontSize: "11px", fontWeight: "600", color: "#aaaaaa", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 3px 0" },
   detailValue: { fontSize: "13px", color: "#111111", margin: "0" },
   statusRow: {},
-  fieldLabel: { fontSize: "12px", fontWeight: "600", color: "#555555", margin: "0 0 8px 0" },
+  fieldLabel: { fontSize: "12px", fontWeight: "600", color: "#555555", margin: "0 0 4px 0" },
+  fieldHint: { fontSize: "11px", color: "#aaaaaa", margin: "0 0 8px 0" },
   statusGrid: { display: "flex", flexWrap: "wrap", gap: "6px" },
   statusBtn: { padding: "7px 14px", fontSize: "12px", fontWeight: "500", color: "#888888", backgroundColor: "#f5f5f5", border: "1px solid #eeeeee", borderRadius: "99px", cursor: "pointer" },
   textarea: { width: "100%", padding: "10px 13px", fontSize: "13px", border: "1px solid #e5e5e5", borderRadius: "8px", outline: "none", backgroundColor: "#fafafa", boxSizing: "border-box", minHeight: "70px", resize: "vertical", fontFamily: "inherit", lineHeight: "1.6", color: "#111111", marginBottom: "8px" },
