@@ -1,0 +1,1 @@
+alter table consultation_bookings add column if not exists session_mode text check (session_mode in ('virtual', 'physical'));

@@ -1,0 +1,74 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const supabaseAdmin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+
+Deno.serve(async (req: Request) => {
+  try {
+    const body = await req.text();
+    const event = JSON.parse(body);
+
+    if (event.event !== "charge.success") {
+      return new Response("OK", { status: 200 });
+    }
+
+    const data = event.data;
+
+    // Paystack sometimes sends metadata as a JSON string instead of an object
+    let metadata = data.metadata;
+    if (typeof metadata === "string") {
+      try {
+        metadata = JSON.parse(metadata);
+      } catch {
+        console.error("Failed to parse metadata string:", metadata);
+        metadata = {};
+      }
+    }
+
+    const bookingId = metadata?.booking_id ||
+      metadata?.custom_fields?.find((f: any) => f.variable_name === "booking_id")?.value;
+
+    console.log("Parsed metadata:", JSON.stringify(metadata));
+    console.log("Resolved bookingId:", bookingId);
+
+    if (!bookingId) {
+      console.error("No booking_id in metadata");
+      return new Response("OK", { status: 200 });
+    }
+
+    const verifyRes = await fetch(
+      `https://api.paystack.co/transaction/verify/${data.reference}`,
+      { headers: { "Authorization": `Bearer ${PAYSTACK_SECRET_KEY}` } }
+    );
+    const verifyData = await verifyRes.json();
+
+    if (!verifyData.status || verifyData.data.status !== "success") {
+      console.error("Transaction verification failed");
+      return new Response("OK", { status: 200 });
+    }
+
+    const { error } = await supabaseAdmin
+      .from("consultation_bookings")
+      .update({
+        payment_status: "confirmed",
+        booking_status: "awaiting_booking",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", bookingId);
+
+    if (error) {
+      console.error("Failed to confirm booking:", error);
+    } else {
+      console.log(`Booking ${bookingId} payment confirmed`);
+    }
+
+    return new Response("OK", { status: 200 });
+
+  } catch (err) {
+    console.error("consultation-webhook error:", err);
+    return new Response("OK", { status: 200 });
+  }
+});
