@@ -17,6 +17,7 @@ import {
   Speaker,
   Trash2,
   Calendar,
+  Cpu,
 } from "lucide-react";
 
 const ADMIN_EMAILS = ["connor@xeero.me"];
@@ -34,6 +35,7 @@ const navItems: NavItem[] = [
   { label: "Finance", icon: <DollarSign size={16} />, path: "/crm/finance" },
   { label: "Broadcast", icon: <Mail size={16} />, path: "/crm/broadcast" },
   { label: "Opportunities", icon: <Zap size={16} />, path: "/crm/opportunities" },
+  { label: "Pordware", icon: <Cpu size={16} />, path: "/crm/pordware" },
   { label: "Advisory", icon: <Calendar size={16} />, path: "/crm/advisory" },
   { label: "Roadmap", icon: <Sparkles size={16} />, path: "/crm/roadmap" },
   { label: "Services", icon: <Crown size={16} />, path: "/crm/services" },
