@@ -1,0 +1,1 @@
+alter table pordware_applications add column if not exists terms_acknowledged boolean not null default false;

@@ -13,6 +13,7 @@ import PordwareStep6 from "@/components/dashboard/pordware/PordwareStep6";
 import PordwareStep7 from "@/components/dashboard/pordware/PordwareStep7";
 import PordwareStep8 from "@/components/dashboard/pordware/PordwareStep8";
 import PordwareStep9 from "@/components/dashboard/pordware/PordwareStep9";
+import PordwareTermsGate from "@/components/dashboard/pordware/PordwareTermsGate";
 
 const TOTAL_STEPS = 9;
 
@@ -120,6 +121,15 @@ export default function PordwareApplicationFlow({ onClose }: { onClose: () => vo
         </p>
         <button style={styles.doneBtn} onClick={onClose}>Back to Funding</button>
       </div>
+    );
+  }
+
+  if (!application?.terms_acknowledged) {
+    return (
+      <PordwareTermsGate
+        onClose={onClose}
+        onAcknowledge={() => saveStep({ terms_acknowledged: true }, application?.current_step || 1)}
+      />
     );
   }
 
