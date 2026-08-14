@@ -80,6 +80,22 @@ export default function CrmDeletionsPage() {
   const completed = requests.filter((r) => r.status === "completed");
   const cancelled = requests.filter((r) => r.status === "cancelled");
 
+  const renderActionRow = (r: DeletionRequest) => (
+    confirmingId === r.id ? (
+      <div style={styles.confirmRow}>
+        <span style={styles.confirmText}>Permanently delete this account and all data now?</span>
+        <button style={styles.confirmYesBtn} onClick={() => handleExecute(r.id)} disabled={executing === r.id}>
+          {executing === r.id ? "Deleting..." : "Yes, delete permanently"}
+        </button>
+        <button style={styles.confirmNoBtn} onClick={() => setConfirmingId(null)}>Cancel</button>
+      </div>
+    ) : (
+      <button style={styles.executeBtn} onClick={() => setConfirmingId(r.id)}>
+        <Trash2 size={13} />Process Deletion Now
+      </button>
+    )
+  );
+
   return (
     <div style={styles.page}>
 
@@ -104,20 +120,7 @@ export default function CrmDeletionsPage() {
                 </div>
                 <span style={styles.dueBadge}><AlertTriangle size={11} />{timeUntil(r.scheduled_for)}</span>
               </div>
-
-              {confirmingId === r.id ? (
-                <div style={styles.confirmRow}>
-                  <span style={styles.confirmText}>Permanently delete this account and all data?</span>
-                  <button style={styles.confirmYesBtn} onClick={() => handleExecute(r.id)} disabled={executing === r.id}>
-                    {executing === r.id ? "Deleting..." : "Yes, delete permanently"}
-                  </button>
-                  <button style={styles.confirmNoBtn} onClick={() => setConfirmingId(null)}>Cancel</button>
-                </div>
-              ) : (
-                <button style={styles.executeBtn} onClick={() => setConfirmingId(r.id)}>
-                  <Trash2 size={13} />Process Deletion
-                </button>
-              )}
+              {renderActionRow(r)}
             </div>
           ))}
         </div>
@@ -132,9 +135,11 @@ export default function CrmDeletionsPage() {
               <div>
                 <p style={styles.cardTitle}>{r.profiles?.startup_name || "Unknown"}</p>
                 <p style={styles.cardSub}>{r.profiles?.founder_name} · xeero.me/{r.profiles?.slug}</p>
+                {r.reason && <p style={styles.cardReason}>"{r.reason}"</p>}
               </div>
               <span style={styles.upcomingBadge}><Clock size={11} />{timeUntil(r.scheduled_for)}</span>
             </div>
+            {renderActionRow(r)}
           </div>
         ))}
       </div>
