@@ -49,19 +49,22 @@ Deno.serve(async (req: Request) => {
                     <!-- Header -->
                     <tr>
                       <td style="background:linear-gradient(135deg,#111111 0%,#1a1a2e 60%,#16213e 100%);padding:32px 40px;">
-                        <div style="display:flex;align-items:center;gap:10px;">
-                          <div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;">
-                            <div style="width:16px;height:16px;border-radius:50%;background:#ffffff;"></div>
-                          </div>
-                          <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;">Xeero</p>
-                        </div>
+                        <table cellpadding="0" cellspacing="0">
+                          <tr>
+                            <td style="padding-right:10px;vertical-align:middle;">
+                              <img src="https://xeero.me/xeeroLogo.png" alt="Xeero" width="32" height="32" style="display:block;border-radius:6px;">
+                            </td>
+                            <td style="vertical-align:middle;">
+                              <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;">Xeero</p>
+                            </td>
+                          </tr>
+                        </table>
                       </td>
                     </tr>
 
                     <!-- Body -->
                     <tr>
                       <td style="padding:40px;">
-
                         <p style="margin:0 0 8px 0;font-size:22px;font-weight:700;color:#111111;">
                           Welcome. Let's build something real.
                         </p>
@@ -105,12 +108,12 @@ Deno.serve(async (req: Request) => {
                         </table>
 
                         <p style="margin:0 0 28px 0;font-size:15px;color:#666666;line-height:1.7;">
-                          Build your profile for free. When you're ready to go public, it's a one-time $9 to publish your link and unlock everything. No subscription. No hidden fees.
+                          Your profile is now built. When you're ready to go public, it's a one-time $9 to publish your link and unlock everything. No subscription. No hidden fees.
                         </p>
 
                         <a href="https://xeero.me/dashboard"
                           style="display:block;background:#111111;color:#ffffff;text-decoration:none;padding:14px 24px;border-radius:10px;font-size:15px;font-weight:600;text-align:center;margin-bottom:24px;">
-                          Build Your Profile →
+                          Go to Your Dashboard →
                         </a>
 
                         <p style="margin:0;font-size:14px;color:#888888;line-height:1.7;border-top:1px solid #f0f0f0;padding-top:20px;">
