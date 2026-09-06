@@ -83,6 +83,26 @@ export default function CrmAffiliatesPage() {
         paid_at: status === "paid" ? new Date().toISOString() : null,
       })
       .eq("id", id);
+
+    if (status === "paid") {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        await fetch(
+          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/notify-affiliate-payout`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${session?.access_token}`,
+            },
+            body: JSON.stringify({ payout_id: id }),
+          }
+        );
+      } catch (err) {
+        console.error("Failed to send payout receipt email:", err);
+      }
+    }
+
     await fetchData();
     setProcessingId(null);
   };
