@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import Step1Identity from "@/components/onboarding/Step1Identity";
@@ -42,6 +42,7 @@ async function checkSlugAvailable(slug: string) {
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const [checkingSession, setCheckingSession] = useState(true);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -52,6 +53,34 @@ export default function OnboardingPage() {
     business_model: "", traction: "", location: "", founder_name: "", founder_role: "",
     founder_bio: "", founder_linkedin: "", founder_twitter: "", slug: "",
   });
+
+  // Guard: no session → send to auth. Session but profile already exists → skip
+  // straight to edit, since onboarding is meant to run exactly once per founder.
+  useEffect(() => {
+    const checkAccess = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session?.user) {
+        router.replace("/auth");
+        return;
+      }
+
+      const { data: existingProfile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      if (existingProfile) {
+        router.replace("/dashboard/edit");
+        return;
+      }
+
+      setCheckingSession(false);
+    };
+
+    checkAccess();
+  }, [router]);
 
   const update = (field: string, value: string) => {
     setData((prev) => ({ ...prev, [field]: value }));
@@ -118,6 +147,14 @@ export default function OnboardingPage() {
   };
 
   const progress = (step / TOTAL_STEPS) * 100;
+
+  if (checkingSession) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.loadingDot} />
+      </div>
+    );
+  }
 
   return (
     <div style={styles.page}>
@@ -186,6 +223,7 @@ export default function OnboardingPage() {
 type Styles = { [key: string]: React.CSSProperties };
 const styles: Styles = {
   page: { minHeight: "100vh", backgroundColor: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" },
+  loadingDot: { width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#cccccc" },
   card: { backgroundColor: "#ffffff", borderRadius: "16px", padding: "40px", width: "100%", maxWidth: "480px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" },
   header: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" },
   logoWrapper: { display: "flex", alignItems: "center" },

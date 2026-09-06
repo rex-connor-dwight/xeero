@@ -17,7 +17,13 @@ async function handleLogin(email: string, password: string) {
 }
 
 async function handleSignup(email: string, password: string) {
-  const { error } = await supabase.auth.signUp({ email, password });
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: `${window.location.origin}/onboarding`,
+    },
+  });
   return error;
 }
 
