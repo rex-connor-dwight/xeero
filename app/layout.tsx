@@ -12,9 +12,9 @@ export const metadata: Metadata = {
   creator: "Xeero",
   metadataBase: new URL("https://xeero.me"),
   icons: {
-    icon: "/favicon.png",
-    shortcut: "/favicon.png",
-    apple: "/favicon.png",
+    icon: "/xeeroLogoBlack.png",
+    shortcut: "/xeeroLogoBlack.png",
+    apple: "/xeeroLogoBlack.png",
   },
   openGraph: {
     title: "Xeero: Everything your startup needs in one link",
