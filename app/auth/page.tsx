@@ -7,6 +7,7 @@ import MainView from "@/components/auth/MainView";
 import ForgotPasswordView from "@/components/auth/ForgotPasswordView";
 import ForgotSentView from "@/components/auth/ForgotSentView";
 import AuthShowcasePanel from "@/components/auth/AuthShowcasePanel";
+import { captureReferralCode, consumeReferralCode } from "@/lib/referral";
 
 type AuthMode = "login" | "signup";
 type View = "main" | "forgot" | "forgot-sent";
@@ -17,13 +18,21 @@ async function handleLogin(email: string, password: string) {
 }
 
 async function handleSignup(email: string, password: string) {
+  // Read the referral code before signup so it can be attached as metadata
+  // on the auth.users row itself — this survives the email confirmation gap,
+  // since confirmation can happen in a completely different browser tab or
+  // device than the one that started signup, where localStorage isn't shared.
+  const referralCode = consumeReferralCode();
+
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       emailRedirectTo: `${window.location.origin}/onboarding`,
+      data: referralCode ? { referral_code: referralCode } : undefined,
     },
   });
+
   return error;
 }
 

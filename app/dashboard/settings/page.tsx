@@ -8,6 +8,8 @@ import { Settings, User, ExternalLink, AlertTriangle, Crown, Users, Check } from
 import AccountSettings from "@/components/dashboard/AccountSettings";
 import VisibilityToggles from "@/components/dashboard/VisibilityToggles";
 import DeletionRequest from "@/components/dashboard/DeletionRequest";
+import ReferralCard from "@/components/dashboard/affiliate/ReferralCard";
+import ReferralStats from "@/components/dashboard/affiliate/ReferralStats";
 
 declare global {
   interface Window {
@@ -119,7 +121,6 @@ export default function SettingsPage() {
       </div>
 
       <AccountSettings />
-      <AccountSettings />
       <VisibilityToggles />
 
       {/* ── Billing / Xeero for Teams ── */}
@@ -175,6 +176,11 @@ export default function SettingsPage() {
           </button>
         </div>
       )}
+
+      {/* ── Refer & Earn ── */}
+      <p style={styles.sectionLabel}>Refer & Earn</p>
+      <ReferralCard />
+      <ReferralStats />
 
       <p style={styles.sectionLabel}>Profile</p>
       <div style={styles.card}>

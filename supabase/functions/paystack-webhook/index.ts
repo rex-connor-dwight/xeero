@@ -88,6 +88,27 @@ Deno.serve(async (req: Request) => {
       console.error("Failed to update profile:", error);
     } else {
       console.log(`Profile ${profileId} is now live`);
+
+      // Reward the referrer, if this profile came from a referral link
+      const { data: referral } = await supabaseAdmin
+        .from("affiliate_referrals")
+        .select("id, status")
+        .eq("referred_profile_id", profileId)
+        .eq("status", "pending")
+        .maybeSingle();
+
+      if (referral) {
+        const GO_LIVE_REWARD_USD = 2; // 20% of the $9 go-live fee
+        await supabaseAdmin
+          .from("affiliate_referrals")
+          .update({
+            status: "go_live_rewarded",
+            go_live_reward_usd: GO_LIVE_REWARD_USD,
+            go_live_rewarded_at: new Date().toISOString(),
+          })
+          .eq("id", referral.id);
+        console.log(`Referral ${referral.id} rewarded for go-live`);
+      }
     }
 
     // Log payment to payments table

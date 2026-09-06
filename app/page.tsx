@@ -9,6 +9,7 @@ import Features from "@/components/landing/Features";
 import ValidateSection from "@/components/landing/ValidateSection";
 import Pricing from "@/components/landing/Pricing";
 import CtaFooter from "@/components/landing/CtaFooter";
+import { captureReferralCode } from "@/lib/referral";
 
 function ErrorHandler() {
   const router = useRouter();
@@ -19,6 +20,13 @@ function ErrorHandler() {
     const errorCode = searchParams.get("error_code");
     if (error === "access_denied" && errorCode === "otp_expired") {
       router.push("/auth?error=link_expired");
+    }
+
+    // Capture referral code from the URL the moment anyone lands here,
+    // before they've even seen a signup button. Silent, no UI shown.
+    const ref = searchParams.get("ref");
+    if (ref) {
+      captureReferralCode(ref);
     }
   }, []);
 

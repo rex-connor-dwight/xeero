@@ -125,6 +125,33 @@ export default function OnboardingPage() {
       return;
     }
 
+        // If this signup came through a referral link, the code is stored in this
+    // user's auth metadata (set at signup time), which survives regardless of
+    // which device/tab confirmed the email.
+    const referralCode = user.user_metadata?.referral_code as string | undefined;
+    if (referralCode) {
+      const { data: newProfile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+
+      const { data: referrerLink } = await supabase
+        .from("affiliate_links")
+        .select("profile_id")
+        .eq("referral_code", referralCode)
+        .maybeSingle();
+
+      // Only create the referral if the code is real and isn't self-referral
+      if (newProfile && referrerLink && referrerLink.profile_id !== newProfile.id) {
+        await supabase.from("affiliate_referrals").insert({
+          referrer_profile_id: referrerLink.profile_id,
+          referred_profile_id: newProfile.id,
+          referral_code: referralCode,
+        });
+      }
+    }
+
     // Welcome email now fires here, once the founder has actually built something,
     // not immediately at signup before they've done anything.
     if (user.email) {

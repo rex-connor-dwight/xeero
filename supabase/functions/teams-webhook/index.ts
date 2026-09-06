@@ -64,6 +64,29 @@ Deno.serve(async (req: Request) => {
       console.error("Failed to upgrade plan:", error);
     } else {
       console.log(`Profile ${profileId} upgraded to Teams until ${expiresAt.toISOString()}`);
+
+      // One-time Teams referral bonus. If the same referral already earned the
+      // go-live reward, bump it to fully_rewarded rather than overwriting that status.
+      const { data: referral } = await supabaseAdmin
+        .from("affiliate_referrals")
+        .select("id, status")
+        .eq("referred_profile_id", profileId)
+        .in("status", ["pending", "go_live_rewarded"])
+        .maybeSingle();
+
+      if (referral) {
+        const TEAMS_REWARD_USD = 6; // ~20% of $29.99, one-time only
+        const newStatus = referral.status === "go_live_rewarded" ? "fully_rewarded" : "teams_rewarded";
+        await supabaseAdmin
+          .from("affiliate_referrals")
+          .update({
+            status: newStatus,
+            teams_reward_usd: TEAMS_REWARD_USD,
+            teams_rewarded_at: new Date().toISOString(),
+          })
+          .eq("id", referral.id);
+        console.log(`Referral ${referral.id} rewarded for Teams upgrade`);
+      }
     }
 
     await supabaseAdmin.from("payments").insert({
