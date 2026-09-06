@@ -21,7 +21,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const { data: profiles } = await supabase
       .from("profiles")
       .select("slug, updated_at")
-      .eq("is_live", true);
+      .eq("is_live", true)
+      .limit(50000);
 
     const slugPages: MetadataRoute.Sitemap = (profiles || []).map((p) => ({
       url: `https://xeero.me/${p.slug}`,

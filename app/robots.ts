@@ -5,15 +5,20 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: ["/", "/$slug"],
+        allow: ["/"],
         disallow: [
           "/dashboard",
           "/dashboard/",
+          "/team-dashboard",
+          "/team-dashboard/",
+          "/crm",
+          "/crm/",
           "/onboarding",
           "/auth",
           "/preview",
           "/payment",
           "/confirm",
+          "/join",
           "/api",
         ],
       },
