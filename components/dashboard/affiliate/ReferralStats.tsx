@@ -20,6 +20,7 @@ export default function ReferralStats() {
   const [loading, setLoading] = useState(true);
   const [showPayoutModal, setShowPayoutModal] = useState(false);
   const [payoutRequested, setPayoutRequested] = useState(false);
+  const [paidOutUsd, setPaidOutUsd] = useState(0);
 
   useEffect(() => {
     if (!profile) return;
@@ -34,12 +35,18 @@ export default function ReferralStats() {
 
     supabase
       .from("affiliate_payouts")
-      .select("id")
+      .select("id, status, amount_usd")
       .eq("profile_id", profile.id)
-      .eq("status", "pending")
-      .maybeSingle()
       .then(({ data }) => {
-        if (data) setPayoutRequested(true);
+        const pending = (data || []).find((p) => p.status === "pending");
+        if (pending) setPayoutRequested(true);
+
+        // Sum everything already paid or currently pending review —
+        // both count as "already accounted for", not available to request again.
+        const accountedFor = (data || [])
+          .filter((p) => p.status === "paid" || p.status === "pending")
+          .reduce((sum, p) => sum + Number(p.amount_usd), 0);
+        setPaidOutUsd(accountedFor);
       });
   }, [profile]);
 
@@ -47,10 +54,11 @@ export default function ReferralStats() {
 
   const totalReferred = referrals.length;
   const rewarded = referrals.filter((r) => r.status !== "pending");
-  const totalEarnedUsd = rewarded.reduce(
+  const lifetimeEarnedUsd = rewarded.reduce(
     (sum, r) => sum + (r.go_live_reward_usd || 0) + (r.teams_reward_usd || 0),
     0
   );
+  const availableToRequestUsd = Math.max(0, lifetimeEarnedUsd - paidOutUsd);
   const pendingCount = referrals.filter((r) => r.status === "pending").length;
 
   return (
@@ -66,7 +74,7 @@ export default function ReferralStats() {
         <div style={styles.statItem}>
           <div style={styles.statIcon}><DollarSign size={14} color="#38a169" /></div>
           <div>
-            <p style={styles.statValue}>${totalEarnedUsd.toFixed(2)}</p>
+            <p style={styles.statValue}>${lifetimeEarnedUsd.toFixed(2)}</p>
             <p style={styles.statLabel}>Earned</p>
           </div>
         </div>
@@ -78,22 +86,24 @@ export default function ReferralStats() {
         </p>
       )}
 
-      {totalEarnedUsd > 0 && (
-        payoutRequested ? (
-          <div style={styles.payoutPending}>
-            <p style={styles.payoutPendingText}>Payout request submitted. We'll be in touch.</p>
-          </div>
-        ) : (
-          <button style={styles.payoutBtn} onClick={() => setShowPayoutModal(true)}>
-            <Send size={13} />Request Payout
-          </button>
-        )
-      )}
+      {payoutRequested ? (
+        <div style={styles.payoutPending}>
+          <p style={styles.payoutPendingText}>Payout request submitted. We'll be in touch.</p>
+        </div>
+      ) : availableToRequestUsd > 0 ? (
+        <button style={styles.payoutBtn} onClick={() => setShowPayoutModal(true)}>
+          <Send size={13} />Request Payout — ${availableToRequestUsd.toFixed(2)}
+        </button>
+      ) : lifetimeEarnedUsd > 0 ? (
+        <div style={styles.allPaidNote}>
+          <p style={styles.allPaidText}>You're all caught up. New earnings show up here as soon as your next referral goes live.</p>
+        </div>
+      ) : null}
 
       {showPayoutModal && profile && (
         <PayoutRequestModal
           profileId={profile.id}
-          amountUsd={totalEarnedUsd}
+          amountUsd={availableToRequestUsd}
           onClose={() => setShowPayoutModal(false)}
           onSubmitted={() => { setPayoutRequested(true); setShowPayoutModal(false); }}
         />
@@ -114,4 +124,6 @@ const styles: Styles = {
   payoutBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", width: "100%", padding: "10px", fontSize: "13px", fontWeight: "600", color: "#ffffff", backgroundColor: "#111111", border: "none", borderRadius: "8px", cursor: "pointer" },
   payoutPending: { padding: "10px 14px", backgroundColor: "#fffbeb", border: "1px solid #fef08a", borderRadius: "8px" },
   payoutPendingText: { fontSize: "12px", color: "#92610a", margin: "0" },
+  allPaidNote: { padding: "10px 14px", backgroundColor: "#f0fff4", border: "1px solid #c6f6d5", borderRadius: "8px" },
+  allPaidText: { fontSize: "12px", color: "#38a169", margin: "0", lineHeight: "1.5" },
 };
