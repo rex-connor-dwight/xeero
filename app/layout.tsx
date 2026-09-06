@@ -11,11 +11,6 @@ export const metadata: Metadata = {
   authors: [{ name: "Xeero" }],
   creator: "Xeero",
   metadataBase: new URL("https://xeero.me"),
-  icons: {
-    icon: "/xeeroLogoBlack.png",
-    shortcut: "/xeeroLogoBlack.png",
-    apple: "/xeeroLogoBlack.png",
-  },
   openGraph: {
     title: "Xeero: Everything your startup needs in one link",
     description: "Build a professional startup profile in minutes. One link holds your pitch deck, waitlist, data room, and founder CV.",
