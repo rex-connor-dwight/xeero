@@ -22,25 +22,43 @@ function buildEmailHtml(
   ctaUrl?: string
 ) {
   return `
-    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:40px 24px;background:#ffffff;">
-      <div style="margin-bottom:32px;display:flex;align-items:center;gap:8px;">
-        <div style="width:8px;height:8px;border-radius:50%;background:#111111;"></div>
-        <span style="font-size:14px;font-weight:700;color:#111111;">Xeero</span>
-      </div>
-      ${imageUrl ? `
-        <div style="width:100%;overflow:hidden;border-radius:12px;margin-bottom:24px;">
-          <img src="${imageUrl}" alt="" style="width:100%;display:block;object-fit:cover;max-height:280px;" />
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+    <body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+      <div style="max-width:520px;margin:40px auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #f0f0f0;">
+
+        <!-- Header: logo on white -->
+        <div style="padding:28px 32px 20px 32px;border-bottom:1px solid #f0f0f0;">
+          <img src="https://xeero.me/xeeroLogo.png" alt="Xeero" width="24" height="24" style="display:block;">
         </div>
-      ` : ""}
-      <h1 style="font-size:22px;font-weight:700;color:#111111;margin:0 0 12px 0;line-height:1.3;">${header}</h1>
-      <div style="font-size:14px;color:#555555;line-height:1.8;margin:0 0 28px 0;white-space:pre-wrap;">${body}</div>
-      ${ctaLabel && ctaUrl ? `
-        <a href="${ctaUrl}" style="display:inline-block;padding:12px 24px;background:#111111;color:#ffffff;font-size:14px;font-weight:600;border-radius:8px;text-decoration:none;margin-bottom:32px;">${ctaLabel}</a>
-      ` : ""}
-      <div style="margin-top:40px;padding-top:24px;border-top:1px solid #f0f0f0;">
-        <p style="font-size:12px;color:#cccccc;margin:0;">You're receiving this because you have an account on Xeero. · <a href="https://xeero.me" style="color:#cccccc;">xeero.me</a></p>
+
+        <!-- Body -->
+        <div style="padding:28px 32px;">
+          ${imageUrl ? `
+            <div style="width:100%;overflow:hidden;border-radius:10px;margin-bottom:24px;">
+              <img src="${imageUrl}" alt="" style="width:100%;display:block;object-fit:cover;max-height:260px;" />
+            </div>
+          ` : ""}
+
+          <h1 style="font-size:20px;font-weight:700;color:#111111;margin:0 0 14px 0;line-height:1.35;">${header}</h1>
+          <div style="font-size:14px;color:#555555;line-height:1.8;margin:0 0 28px 0;white-space:pre-wrap;">${body}</div>
+
+          ${ctaLabel && ctaUrl ? `
+            <a href="${ctaUrl}" style="display:block;text-align:center;padding:13px 28px;background:#111111;color:#ffffff;font-size:14px;font-weight:600;border-radius:8px;text-decoration:none;">${ctaLabel}</a>
+          ` : ""}
+        </div>
+
+        <!-- Footer -->
+        <div style="padding:18px 32px;background:#fafafa;border-top:1px solid #f0f0f0;">
+          <p style="font-size:11px;color:#cccccc;margin:0;line-height:1.6;">
+            You're receiving this because you have an account on
+            <a href="https://xeero.me" style="color:#aaaaaa;text-decoration:none;">Xeero</a>.
+          </p>
+        </div>
       </div>
-    </div>
+    </body>
+    </html>
   `;
 }
 
