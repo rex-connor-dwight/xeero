@@ -14,7 +14,6 @@ import {
   Zap,
   Sparkles,
   Crown,
-  Speaker,
   Trash2,
   Calendar,
   Cpu,
@@ -41,7 +40,6 @@ const navItems: NavItem[] = [
   { label: "Advisory", icon: <Calendar size={16} />, path: "/crm/advisory" },
   { label: "Roadmap", icon: <Sparkles size={16} />, path: "/crm/roadmap" },
   { label: "Services", icon: <Crown size={16} />, path: "/crm/services" },
-  { label: "Fireside", icon: <Speaker size={16} />, path: "/crm/fireside" },
   { label: "Deletions", icon: <Trash2 size={16} />, path: "/crm/deletions" },
 ];
 
