@@ -7,6 +7,7 @@ import { useXeero } from "@/lib/context";
 import {
   LayoutDashboard, User, Users, Bell, Plus, Lightbulb,
   FolderLock, Heart, Rocket, Crown,
+  Briefcase,
 } from "lucide-react";
 import DashboardShell, { type ShellNavItem } from "@/components/dashboard/shell/DashboardShell";
 
@@ -14,6 +15,7 @@ const navItems: ShellNavItem[] = [
   { label: "Dashboard", icon: <LayoutDashboard size={18} />, path: "/dashboard" },
   { label: "My Profile", icon: <User size={18} />, path: "/dashboard/edit" },
   { label: "Team", icon: <Users size={18} />, path: "/dashboard/team" },
+  { label: "Hiring", icon: <Briefcase size={18} />, path: "/dashboard/hiring" },
   { label: "Waitlist", icon: <Users size={18} />, path: "/dashboard/waitlist" },
   { label: "Validate", icon: <Lightbulb size={18} />, path: "/dashboard/validate" },
   { label: "Data Room", icon: <FolderLock size={18} />, path: "/dashboard/dataroom" },

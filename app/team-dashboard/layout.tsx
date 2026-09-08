@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useXeero } from "@/lib/context";
 import {
-  LayoutDashboard, Users, Mail, FileText, Rocket, Bell, Heart, Crown, Lightbulb,
+  LayoutDashboard, Users, Mail, FileText, Rocket, Bell, Heart, Crown, Lightbulb, Briefcase,
 } from "lucide-react";
 import DashboardShell, { type ShellNavItem } from "@/components/dashboard/shell/DashboardShell";
 
@@ -35,6 +35,7 @@ export default function TeamDashboardLayout({ children }: { children: React.Reac
     ...(permissions.includes("validate") ? [{ label: "Validate", icon: <Lightbulb size={18} />, path: "/team-dashboard/validate" }] : []),
     ...(permissions.includes("deck_upload") ? [{ label: "Pitch Deck", icon: <FileText size={18} />, path: "/team-dashboard/deck" }] : []),
     { label: "Team", icon: <Users size={18} />, path: "/team-dashboard/team" },
+    { label: "Hiring", icon: <Briefcase size={18} />, path: "/team-dashboard/hiring" },
     ...(permissions.includes("funding") ? [{ label: "Funding", icon: <Rocket size={18} />, path: "/team-dashboard/funding" }] : []),
     { label: "Notifications", icon: <Bell size={18} />, path: "/team-dashboard/notifications" },
     ...(permissions.includes("view_stats") ? [{ label: "Supporters", icon: <Heart size={18} />, path: "/team-dashboard/supporters" }] : []),
