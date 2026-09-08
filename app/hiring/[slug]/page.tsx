@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { ArrowLeft, Clock, ExternalLink, DollarSign, Lock } from "lucide-react";
+import { ArrowLeft, Clock, ExternalLink, DollarSign, Lock, MapPin } from "lucide-react";
 import ApplicationForm from "@/components/hiring/ApplicationForm";
 
 export default function RoleApplicationPage() {
@@ -16,11 +16,8 @@ export default function RoleApplicationPage() {
 
   useEffect(() => {
     const rawSlug = params.slug as string;
-    // Format is {founder-slug}-{role-id} — role IDs are UUIDs (36 chars with hyphens),
-    // so split off the last 36 characters as the ID and everything before the final
-    // separating hyphen as the founder slug.
     const roleId = rawSlug.slice(-36);
-    const founderSlug = rawSlug.slice(0, rawSlug.length - 37); // -37 to also drop the joining "-"
+    const founderSlug = rawSlug.slice(0, rawSlug.length - 37);
 
     if (!roleId || roleId.length !== 36) {
       setNotFound(true);
@@ -30,7 +27,7 @@ export default function RoleApplicationPage() {
 
     supabase
       .from("hiring_roles")
-      .select("*, profiles(startup_name, slug, logo_url)")
+      .select("*, profiles(startup_name, slug, logo_url, problem, solution)")
       .eq("id", roleId)
       .single()
       .then(async ({ data, error }) => {
@@ -74,7 +71,6 @@ export default function RoleApplicationPage() {
   const closesAt = new Date(role.closes_at);
   const isScheduled = now < opensAt;
   const isClosed = now > closesAt;
-  const isOpen = !isScheduled && !isClosed;
 
   if (isScheduled) {
     return (
@@ -102,6 +98,10 @@ export default function RoleApplicationPage() {
     );
   }
 
+  const aboutText = role.about_company_source === "profile"
+    ? `${role.profiles?.problem || ""} ${role.profiles?.solution || ""}`.trim()
+    : role.about_company;
+
   return (
     <div style={styles.page}>
       <div style={styles.body}>
@@ -114,13 +114,49 @@ export default function RoleApplicationPage() {
           <h1 style={styles.roleTitle}>{role.title}</h1>
 
           <div style={styles.tagRow}>
+            {role.employment_type && (
+              <span style={styles.tag}><MapPin size={11} />{role.employment_type.charAt(0).toUpperCase() + role.employment_type.slice(1)}</span>
+            )}
             {role.compensation_amount && (
               <span style={styles.tag}><DollarSign size={11} />{role.compensation_amount}</span>
             )}
             {role.is_equity_offered && <span style={styles.tag}>+ Equity</span>}
           </div>
 
-          <p style={styles.description}>{role.description}</p>
+          {aboutText && (
+            <>
+              <h3 style={styles.sectionHeading}>About {role.profiles?.startup_name}</h3>
+              <p style={styles.sectionText}>{aboutText}</p>
+            </>
+          )}
+
+          {role.responsibilities && (
+            <>
+              <h3 style={styles.sectionHeading}>Key Responsibilities</h3>
+              <p style={styles.sectionText}>{role.responsibilities}</p>
+            </>
+          )}
+
+          {role.requirements && (
+            <>
+              <h3 style={styles.sectionHeading}>Requirements</h3>
+              <p style={styles.sectionText}>{role.requirements}</p>
+            </>
+          )}
+
+          {role.tools && (
+            <>
+              <h3 style={styles.sectionHeading}>Tools</h3>
+              <p style={styles.sectionText}>{role.tools}</p>
+            </>
+          )}
+
+          {role.what_we_offer && (
+            <>
+              <h3 style={styles.sectionHeading}>What We Offer</h3>
+              <p style={styles.sectionText}>{role.what_we_offer}</p>
+            </>
+          )}
 
           
             <a href={`https://xeero.me/${role.profiles?.slug}`}
@@ -151,8 +187,9 @@ const styles: Styles = {
   roleCard: { backgroundColor: "#ffffff", borderRadius: "16px", padding: "28px", border: "1px solid #f0f0f0", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", marginBottom: "16px" },
   startupName: { fontSize: "12px", fontWeight: "600", color: "#888888", margin: "0 0 6px 0" },
   roleTitle: { fontSize: "22px", fontWeight: "700", color: "#111111", margin: "0 0 14px 0" },
-  tagRow: { display: "flex", gap: "6px", marginBottom: "18px" },
+  tagRow: { display: "flex", gap: "6px", marginBottom: "20px", flexWrap: "wrap" },
   tag: { display: "flex", alignItems: "center", gap: "3px", fontSize: "11px", fontWeight: "600", color: "#38a169", backgroundColor: "#f0fff4", border: "1px solid #c6f6d5", padding: "3px 9px", borderRadius: "99px" },
-  description: { fontSize: "14px", color: "#555555", lineHeight: "1.8", whiteSpace: "pre-wrap", margin: "0 0 18px 0" },
-  viewStartupLink: { display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "#3182ce", textDecoration: "none", fontWeight: "500" },
+  sectionHeading: { fontSize: "13px", fontWeight: "700", color: "#111111", margin: "18px 0 8px 0" },
+  sectionText: { fontSize: "14px", color: "#555555", lineHeight: "1.8", whiteSpace: "pre-wrap", margin: "0" },
+  viewStartupLink: { display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "#3182ce", textDecoration: "none", fontWeight: "500", marginTop: "20px" },
 };
