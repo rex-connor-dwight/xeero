@@ -1,0 +1,2 @@
+create index if not exists idx_hiring_roles_open_window on hiring_roles (opens_at, closes_at);
+create index if not exists idx_hiring_roles_title_search on hiring_roles using gin (to_tsvector('english', title));

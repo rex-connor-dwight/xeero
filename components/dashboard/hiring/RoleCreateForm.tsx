@@ -3,17 +3,32 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useXeero } from "@/lib/context";
-import { Plus, Trash2, ArrowLeft } from "lucide-react";
+import { ArrowLeft, Copy, CheckCircle } from "lucide-react";
+import EmploymentSection from "@/components/dashboard/hiring/formSections/EmploymentSection";
+import CompensationSection from "@/components/dashboard/hiring/formSections/CompensationSection";
+import ScreeningQuestionsSection from "@/components/dashboard/hiring/formSections/ScreeningQuestionsSection";
+import ApplicationFieldsSection, { type ApplicationFields } from "@/components/dashboard/hiring/formSections/ApplicationFieldsSection";
+
+const DEFAULT_APPLICATION_FIELDS: ApplicationFields = {
+  cv: { enabled: true, mode: "upload_or_link" },
+  cover_letter: { enabled: false, mode: "upload_or_link" },
+  portfolio_link: { enabled: false },
+  linkedin: { enabled: false },
+  website: { enabled: false },
+  twitter: { enabled: false },
+};
 
 type QuestionDraft = { id?: string; question_text: string; question_type: "yes_no" | "free_text"; correct_answer: "yes" | "no" | null };
 
 export default function RoleCreateForm({
   profileId,
+  founderSlug,
   existingRole,
   onClose,
   onCreated,
 }: {
   profileId: string;
+  founderSlug: string;
   existingRole?: any;
   onClose: () => void;
   onCreated: () => void;
@@ -23,6 +38,9 @@ export default function RoleCreateForm({
 
   const [title, setTitle] = useState(existingRole?.title || "");
   const [employmentType, setEmploymentType] = useState(existingRole?.employment_type || "remote");
+  const [jobType, setJobType] = useState(existingRole?.job_type || "full_time");
+  const [contractValue, setContractValue] = useState(existingRole?.contract_duration_value?.toString() || "");
+  const [contractUnit, setContractUnit] = useState(existingRole?.contract_duration_unit || "months");
   const [aboutSource, setAboutSource] = useState<"custom" | "profile">(existingRole?.about_company_source || "custom");
   const [aboutCompany, setAboutCompany] = useState(existingRole?.about_company || "");
   const [responsibilities, setResponsibilities] = useState(existingRole?.responsibilities || "");
@@ -30,6 +48,8 @@ export default function RoleCreateForm({
   const [tools, setTools] = useState(existingRole?.tools || "");
   const [whatWeOffer, setWhatWeOffer] = useState(existingRole?.what_we_offer || "");
   const [compAmount, setCompAmount] = useState(existingRole?.compensation_amount || "");
+  const [compCurrency, setCompCurrency] = useState(existingRole?.compensation_currency || "USD");
+  const [payFrequency, setPayFrequency] = useState(existingRole?.pay_frequency || "monthly");
   const [isEquity, setIsEquity] = useState(existingRole?.is_equity_offered || false);
   const [opensAt, setOpensAt] = useState(
     existingRole?.opens_at ? new Date(existingRole.opens_at).toISOString().slice(0, 16) : ""
@@ -38,10 +58,15 @@ export default function RoleCreateForm({
     existingRole?.closes_at ? new Date(existingRole.closes_at).toISOString().slice(0, 16) : ""
   );
   const [cutoffScore, setCutoffScore] = useState(existingRole?.cutoff_score || 0);
+  const [applicationFields, setApplicationFields] = useState<ApplicationFields>(
+    existingRole?.application_fields || DEFAULT_APPLICATION_FIELDS
+  );
   const [questions, setQuestions] = useState<QuestionDraft[]>([]);
   const [loadingQuestions, setLoadingQuestions] = useState(isEditing);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [createdRoleId, setCreatedRoleId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!isEditing) return;
@@ -76,8 +101,9 @@ export default function RoleCreateForm({
   };
 
   const canSubmit =
-    title && employmentType && responsibilities && requirements && opensAt && closesAt &&
-    (aboutSource === "profile" || aboutCompany);
+    title && employmentType && jobType && responsibilities && requirements && opensAt && closesAt && compAmount &&
+    (aboutSource === "profile" || aboutCompany) &&
+    (jobType !== "contract" || contractValue);
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -91,19 +117,24 @@ export default function RoleCreateForm({
     const rolePayload = {
       title,
       employment_type: employmentType,
+      job_type: jobType,
+      contract_duration_value: jobType === "contract" ? parseInt(contractValue) || null : null,
+      contract_duration_unit: jobType === "contract" ? contractUnit : null,
       about_company_source: aboutSource,
       about_company: aboutSource === "custom" ? aboutCompany : null,
       responsibilities,
       requirements,
       tools: tools || null,
       what_we_offer: whatWeOffer || null,
-      compensation_amount: compAmount || null,
+      compensation_amount: compAmount,
+      compensation_currency: compCurrency,
+      pay_frequency: payFrequency,
       is_equity_offered: isEquity,
       opens_at: new Date(opensAt).toISOString(),
       closes_at: new Date(closesAt).toISOString(),
       cutoff_score: cutoffScore,
-      // description kept for backward compatibility with the public directory card preview
       description: aboutSource === "custom" ? aboutCompany : `${profile?.problem || ""} ${profile?.solution || ""}`.trim(),
+      application_fields: applicationFields,
     };
 
     let roleId = existingRole?.id;
@@ -148,13 +179,44 @@ export default function RoleCreateForm({
     }
 
     setSaving(false);
-    onCreated();
+
+    if (isEditing) {
+      onCreated();
+    } else {
+      setCreatedRoleId(roleId);
+    }
+  };
+
+  const roleLink = createdRoleId ? `https://xeero.me/hiring/${founderSlug}-${createdRoleId}` : "";
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(roleLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   if (loadingQuestions) {
     return (
       <div style={styles.card}>
         <div style={styles.loadingWrap}><div style={styles.loadingDot} /></div>
+      </div>
+    );
+  }
+
+  if (createdRoleId) {
+    return (
+      <div style={styles.card}>
+        <div style={styles.successIcon}><CheckCircle size={26} color="#38a169" /></div>
+        <h2 style={styles.successTitle}>Role opened</h2>
+        <p style={styles.successText}>Share this link so candidates can apply directly.</p>
+        <div style={styles.linkRow}>
+          <span style={styles.linkText}>{roleLink}</span>
+          <button style={styles.copyBtn} onClick={handleCopy}>
+            {copied ? <CheckCircle size={13} color="#38a169" /> : <Copy size={13} />}
+            {copied ? "Copied" : "Copy"}
+          </button>
+        </div>
+        <button style={styles.doneBtn} onClick={onCreated}>Done</button>
       </div>
     );
   }
@@ -168,18 +230,12 @@ export default function RoleCreateForm({
       <label style={styles.label}>Role title</label>
       <input style={styles.input} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Growth & Sales Specialist" />
 
-      <label style={styles.label}>Work format</label>
-      <div style={styles.segmentRow}>
-        {["remote", "hybrid", "onsite"].map((type) => (
-          <button
-            key={type}
-            style={{ ...styles.segmentBtn, ...(employmentType === type ? styles.segmentBtnActive : {}) }}
-            onClick={() => setEmploymentType(type)}
-          >
-            {type.charAt(0).toUpperCase() + type.slice(1)}
-          </button>
-        ))}
-      </div>
+      <EmploymentSection
+        employmentType={employmentType} setEmploymentType={setEmploymentType}
+        jobType={jobType} setJobType={setJobType}
+        contractValue={contractValue} setContractValue={setContractValue}
+        contractUnit={contractUnit} setContractUnit={setContractUnit}
+      />
 
       <label style={styles.label}>About the company</label>
       <div style={styles.segmentRow}>
@@ -223,13 +279,12 @@ export default function RoleCreateForm({
       <label style={styles.label}>What We Offer (optional)</label>
       <textarea style={styles.textarea} value={whatWeOffer} onChange={(e) => setWhatWeOffer(e.target.value)} placeholder="Perks, growth opportunities, culture" />
 
-      <label style={styles.label}>Compensation (optional)</label>
-      <input style={styles.input} value={compAmount} onChange={(e) => setCompAmount(e.target.value)} placeholder="e.g. $40,000 - $60,000" />
-
-      <label style={styles.checkboxRow}>
-        <input type="checkbox" checked={isEquity} onChange={(e) => setIsEquity(e.target.checked)} />
-        <span>Offering equity (negotiated directly with candidates)</span>
-      </label>
+      <CompensationSection
+        compAmount={compAmount} setCompAmount={setCompAmount}
+        compCurrency={compCurrency} setCompCurrency={setCompCurrency}
+        payFrequency={payFrequency} setPayFrequency={setPayFrequency}
+        isEquity={isEquity} setIsEquity={setIsEquity}
+      />
 
       <div style={styles.dateRow}>
         <div style={{ flex: 1 }}>
@@ -242,36 +297,16 @@ export default function RoleCreateForm({
         </div>
       </div>
 
-      <label style={styles.label}>Cutoff score (number of correct yes/no answers to be flagged as a strong fit)</label>
-      <input style={styles.input} type="number" min="0" value={cutoffScore} onChange={(e) => setCutoffScore(parseInt(e.target.value) || 0)} />
+      <ApplicationFieldsSection fields={applicationFields} setFields={setApplicationFields} />
 
-      <label style={styles.label}>Screening Questions</label>
-      {questions.map((q, i) => (
-        <div key={i} style={styles.questionRow}>
-          <input
-            style={styles.questionInput}
-            placeholder={q.question_type === "yes_no" ? "Yes/No question" : "Free-text question"}
-            value={q.question_text}
-            onChange={(e) => updateQuestion(i, "question_text", e.target.value)}
-          />
-          {q.question_type === "yes_no" && (
-            <select
-              style={styles.correctSelect}
-              value={q.correct_answer || "yes"}
-              onChange={(e) => updateQuestion(i, "correct_answer", e.target.value)}
-            >
-              <option value="yes">Correct: Yes</option>
-              <option value="no">Correct: No</option>
-            </select>
-          )}
-          <button style={styles.removeBtn} onClick={() => removeQuestion(i)}><Trash2 size={13} /></button>
-        </div>
-      ))}
-
-      <div style={styles.addQuestionRow}>
-        <button style={styles.addBtn} onClick={() => addQuestion("yes_no")}><Plus size={13} />Yes/No Question</button>
-        <button style={styles.addBtn} onClick={() => addQuestion("free_text")}><Plus size={13} />Free-Text Question</button>
-      </div>
+      <ScreeningQuestionsSection
+        questions={questions}
+        onAdd={addQuestion}
+        onUpdate={updateQuestion}
+        onRemove={removeQuestion}
+        cutoffScore={cutoffScore}
+        setCutoffScore={setCutoffScore}
+      />
 
       {error && <p style={styles.errorText}>{error}</p>}
 
@@ -299,14 +334,14 @@ const styles: Styles = {
   previewBox: { backgroundColor: "#f9f9f9", borderRadius: "8px", padding: "12px", border: "1px solid #f0f0f0" },
   previewLabel: { fontSize: "10px", fontWeight: "600", color: "#aaaaaa", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 6px 0" },
   previewText: { fontSize: "13px", color: "#555555", lineHeight: "1.6", margin: "0" },
-  checkboxRow: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "#444444", marginTop: "14px", cursor: "pointer" },
   dateRow: { display: "flex", gap: "10px" },
-  questionRow: { display: "flex", gap: "6px", marginTop: "8px", alignItems: "center" },
-  questionInput: { flex: 1, padding: "9px 12px", fontSize: "13px", border: "1px solid #e5e5e5", borderRadius: "8px", outline: "none", backgroundColor: "#fafafa", color: "#111111" },
-  correctSelect: { padding: "9px 10px", fontSize: "12px", border: "1px solid #e5e5e5", borderRadius: "8px", outline: "none", backgroundColor: "#fafafa", color: "#111111" },
-  removeBtn: { width: "32px", height: "32px", borderRadius: "8px", backgroundColor: "#fff5f5", border: "1px solid #fed7d7", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#e53e3e", flexShrink: 0 },
-  addQuestionRow: { display: "flex", gap: "8px", marginTop: "12px" },
-  addBtn: { display: "flex", alignItems: "center", gap: "5px", padding: "8px 14px", fontSize: "12px", fontWeight: "500", color: "#111111", backgroundColor: "#f5f5f5", border: "1px solid #eeeeee", borderRadius: "8px", cursor: "pointer" },
   errorText: { fontSize: "12px", color: "#e53e3e", margin: "14px 0 0 0" },
   submitBtn: { width: "100%", padding: "13px", fontSize: "14px", fontWeight: "600", color: "#ffffff", backgroundColor: "#111111", border: "none", borderRadius: "10px", cursor: "pointer", marginTop: "20px" },
+  successIcon: { width: "52px", height: "52px", borderRadius: "14px", backgroundColor: "#f0fff4", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px auto" },
+  successTitle: { fontSize: "18px", fontWeight: "700", color: "#111111", margin: "0 0 6px 0", textAlign: "center" },
+  successText: { fontSize: "13px", color: "#666666", margin: "0 0 20px 0", textAlign: "center" },
+  linkRow: { display: "flex", alignItems: "center", gap: "8px", backgroundColor: "#f9f9f9", border: "1px solid #f0f0f0", borderRadius: "10px", padding: "10px 14px", marginBottom: "16px" },
+  linkText: { flex: 1, fontSize: "12px", color: "#444444", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  copyBtn: { display: "flex", alignItems: "center", gap: "5px", padding: "7px 12px", fontSize: "12px", fontWeight: "600", color: "#111111", backgroundColor: "#ffffff", border: "1px solid #e5e5e5", borderRadius: "8px", cursor: "pointer", flexShrink: 0 },
+  doneBtn: { width: "100%", padding: "12px", fontSize: "13px", fontWeight: "600", color: "#ffffff", backgroundColor: "#111111", border: "none", borderRadius: "8px", cursor: "pointer" },
 };

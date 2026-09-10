@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useXeero } from "@/lib/context";
-import { Briefcase, Plus, ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { Briefcase, Plus, ExternalLink, Pencil, Trash2, Copy, CheckCircle } from "lucide-react";
 import HiringIntroModal from "@/components/hiring/HiringIntroModal";
 import RoleCreateForm from "@/components/dashboard/hiring/RoleCreateForm";
 import RoleBoard from "@/components/dashboard/hiring/RoleBoard";
@@ -21,6 +21,7 @@ export default function HiringRoomView() {
   const [editingRole, setEditingRole] = useState<any | null>(null);
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const fetchRoles = async () => {
     if (!activeProfile) return;
@@ -29,7 +30,26 @@ export default function HiringRoomView() {
       .select("*")
       .eq("profile_id", activeProfile.id)
       .order("created_at", { ascending: false });
-    setRoles(data || []);
+
+    const rolesList = data || [];
+
+    // Get application counts for all roles in one query rather than one per role
+    if (rolesList.length > 0) {
+      const { data: counts } = await supabase
+        .from("hiring_applications")
+        .select("role_id")
+        .in("role_id", rolesList.map((r) => r.id));
+
+      const countMap: Record<string, number> = {};
+      (counts || []).forEach((c) => {
+        countMap[c.role_id] = (countMap[c.role_id] || 0) + 1;
+      });
+
+      setRoles(rolesList.map((r) => ({ ...r, applicant_count: countMap[r.id] || 0 })));
+    } else {
+      setRoles([]);
+    }
+
     setLoading(false);
   };
 
@@ -49,6 +69,14 @@ export default function HiringRoomView() {
     localStorage.setItem(INTRO_SEEN_KEY, "true");
     setShowIntro(false);
     setCreating(true);
+  };
+
+  const handleCopyLink = (roleId: string) => {
+    if (!activeProfile) return;
+    const link = `https://xeero.me/hiring/${activeProfile.slug}-${roleId}`;
+    navigator.clipboard.writeText(link);
+    setCopiedId(roleId);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const getRoleStatus = (role: any) => {
@@ -80,6 +108,7 @@ export default function HiringRoomView() {
     return (
       <RoleCreateForm
         profileId={activeProfile.id}
+        founderSlug={activeProfile.slug}
         existingRole={editingRole}
         onClose={() => { setCreating(false); setEditingRole(null); }}
         onCreated={() => { setCreating(false); setEditingRole(null); fetchRoles(); }}
@@ -119,15 +148,26 @@ export default function HiringRoomView() {
 
             return (
               <div key={role.id} style={styles.roleRow}>
-                <div style={styles.roleMain} onClick={() => setSelectedRoleId(role.id)}>
+                 <div style={styles.roleMain} onClick={() => setSelectedRoleId(role.id)}>
                   <div>
                     <p style={styles.roleTitle}>{role.title}</p>
-                    <p style={styles.roleMeta}>{statusLabel}</p>
+                    <p style={styles.roleMeta}>
+                      {statusLabel} · {role.applicant_count} applicant{role.applicant_count !== 1 ? "s" : ""}
+                    </p>
+                    <p style={styles.roleDates}>
+                      Posted {new Date(role.created_at).toLocaleDateString("en-US", { day: "numeric", month: "short" })}
+                      {" · "}
+                      {status === "closed" ? "Closed " : "Deadline: "}
+                      {new Date(role.closes_at).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })}
+                    </p>
                   </div>
                   <span style={{ ...styles.statusDot, backgroundColor: statusColor }} />
                 </div>
 
                 <div style={styles.roleActions}>
+                  <button style={styles.actionBtn} onClick={() => handleCopyLink(role.id)} title="Copy link">
+                    {copiedId === role.id ? <CheckCircle size={13} color="#38a169" /> : <Copy size={13} color="#888888" />}
+                  </button>
                   {canEdit && (
                     <button style={styles.actionBtn} onClick={() => setEditingRole(role)} title="Edit">
                       <Pencil size={13} color="#888888" />
@@ -136,8 +176,12 @@ export default function HiringRoomView() {
 
                   {confirmingDeleteId === role.id ? (
                     <div style={styles.confirmRow}>
-                      <span style={styles.confirmText}>Delete this role?</span>
-                      <button style={styles.confirmYesBtn} onClick={() => handleDelete(role.id)}>Yes</button>
+                      <span style={styles.confirmText}>
+                        Delete permanently? {role.applicant_count > 0
+                          ? `This removes all ${role.applicant_count} application${role.applicant_count !== 1 ? "s" : ""}, CVs, and answers.`
+                          : ""}
+                      </span>
+                      <button style={styles.confirmYesBtn} onClick={() => handleDelete(role.id)}>Yes, delete</button>
                       <button style={styles.confirmNoBtn} onClick={() => setConfirmingDeleteId(null)}>Cancel</button>
                     </div>
                   ) : (
@@ -176,7 +220,8 @@ const styles: Styles = {
   roleRow: { display: "flex", alignItems: "center", justifyContent: "space-between", backgroundColor: "#ffffff", borderRadius: "12px", border: "1px solid #f0f0f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", padding: "14px 16px", gap: "10px", flexWrap: "wrap" },
   roleMain: { display: "flex", alignItems: "center", justifyContent: "space-between", flex: 1, cursor: "pointer", gap: "10px", minWidth: "140px" },
   roleTitle: { fontSize: "13px", fontWeight: "700", color: "#111111", margin: "0 0 2px 0" },
-  roleMeta: { fontSize: "12px", color: "#888888", margin: "0" },
+  roleMeta: { fontSize: "12px", color: "#888888", margin: "0 0 2px 0" },
+  roleDates: { fontSize: "11px", color: "#bbbbbb", margin: "0" },
   statusDot: { width: "8px", height: "8px", borderRadius: "50%", flexShrink: 0 },
   roleActions: { display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 },
   actionBtn: { width: "30px", height: "30px", borderRadius: "8px", backgroundColor: "#f9f9f9", border: "1px solid #f0f0f0", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
