@@ -7,11 +7,12 @@ import { Briefcase, Plus, ExternalLink, Pencil, Trash2, Copy, CheckCircle } from
 import HiringIntroModal from "@/components/hiring/HiringIntroModal";
 import RoleCreateForm from "@/components/dashboard/hiring/RoleCreateForm";
 import RoleBoard from "@/components/dashboard/hiring/RoleBoard";
+import UpgradeGateModal from "@/components/dashboard/UpgradeGateModal";
 
 const INTRO_SEEN_KEY = "xeero_hiring_intro_seen";
 
 export default function HiringRoomView() {
-  const { profile, isTeamMember, founderProfile } = useXeero();
+  const { profile, isTeamMember, founderProfile, isTeamsActive } = useXeero();
   const activeProfile = isTeamMember ? founderProfile : profile;
 
   const [roles, setRoles] = useState<any[]>([]);
@@ -22,6 +23,7 @@ export default function HiringRoomView() {
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showGate, setShowGate] = useState(false);
 
   const fetchRoles = async () => {
     if (!activeProfile) return;
@@ -33,7 +35,6 @@ export default function HiringRoomView() {
 
     const rolesList = data || [];
 
-    // Get application counts for all roles in one query rather than one per role
     if (rolesList.length > 0) {
       const { data: counts } = await supabase
         .from("hiring_applications")
@@ -58,6 +59,10 @@ export default function HiringRoomView() {
   }, [activeProfile]);
 
   const handleOpenRoleClick = () => {
+    if (!isTeamsActive) {
+      setShowGate(true);
+      return;
+    }
     if (!localStorage.getItem(INTRO_SEEN_KEY)) {
       setShowIntro(true);
     } else {
@@ -87,6 +92,10 @@ export default function HiringRoomView() {
   };
 
   const handleDelete = async (roleId: string) => {
+    if (!isTeamsActive) {
+      setShowGate(true);
+      return;
+    }
     await supabase.from("hiring_roles").delete().eq("id", roleId);
     setConfirmingDeleteId(null);
     await fetchRoles();
@@ -119,6 +128,7 @@ export default function HiringRoomView() {
   return (
     <div>
       {showIntro && <HiringIntroModal onClose={handleIntroClose} />}
+      {showGate && <UpgradeGateModal featureName="Hiring Room" onClose={() => setShowGate(false)} />}
 
       <div style={styles.header}>
         <div style={styles.headerLeft}>
@@ -148,7 +158,7 @@ export default function HiringRoomView() {
 
             return (
               <div key={role.id} style={styles.roleRow}>
-                 <div style={styles.roleMain} onClick={() => setSelectedRoleId(role.id)}>
+                <div style={styles.roleMain} onClick={() => setSelectedRoleId(role.id)}>
                   <div>
                     <p style={styles.roleTitle}>{role.title}</p>
                     <p style={styles.roleMeta}>
@@ -169,7 +179,11 @@ export default function HiringRoomView() {
                     {copiedId === role.id ? <CheckCircle size={13} color="#38a169" /> : <Copy size={13} color="#888888" />}
                   </button>
                   {canEdit && (
-                    <button style={styles.actionBtn} onClick={() => setEditingRole(role)} title="Edit">
+                    <button
+                      style={styles.actionBtn}
+                      onClick={() => (isTeamsActive ? setEditingRole(role) : setShowGate(true))}
+                      title="Edit"
+                    >
                       <Pencil size={13} color="#888888" />
                     </button>
                   )}
