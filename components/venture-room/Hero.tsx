@@ -9,7 +9,7 @@ export default function Hero({ onRegister }: { onRegister: () => void }) {
   };
 
   return (
-    <section id="hero" style={styles.section}>
+    <section id="hero" style={styles.section} className="vr-hero-section">
       <img src="/venture-room/hero-bg.png" alt="" style={styles.bgImage} />
       <div style={styles.gradientOverlay} />
 
@@ -21,7 +21,7 @@ export default function Hero({ onRegister }: { onRegister: () => void }) {
         <p style={styles.withConnorP}>with</p> <p style={styles.withConnorP}>Connor</p>
       </div>
 
-      <div style={styles.content}>
+      <div style={styles.content} className="vr-hero-content">
         <p style={styles.theLabel}>THE</p>
         <h1 style={styles.title} className="vr-hero-title">
           <span style={styles.titleAccent}>VENTURE</span>
@@ -36,7 +36,7 @@ export default function Hero({ onRegister }: { onRegister: () => void }) {
         </div>
       </div>
 
-      <div style={styles.ctaBar}>
+      <div style={styles.ctaBar} className="vr-hero-ctabar">
         <button style={styles.primaryBtn} onClick={onRegister}>
           Register for The Venture Room
         </button>
@@ -48,6 +48,9 @@ export default function Hero({ onRegister }: { onRegister: () => void }) {
       <style>{`
         @media (max-width: 700px) {
           .vr-hero-title { font-size: clamp(52px, 13vw, 76px) !important; }
+          .vr-hero-section { padding: 80px 16px 24px 16px !important; }
+          .vr-hero-content { padding-right: 4px !important; }
+          .vr-hero-ctabar { margin-right: 4px !important; }
         }
       `}</style>
     </section>
