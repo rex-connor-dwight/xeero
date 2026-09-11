@@ -29,6 +29,8 @@ Deno.serve(async (req: Request) => {
       targetFunction = "incorporation-webhook";
     } else if (reference.startsWith("xeero_advisory_")) {
       targetFunction = "consultation-webhook";
+    } else if (reference.startsWith("xeero_ventureroom_")) {
+      targetFunction = "venture-room-webhook";
     } else if (reference.startsWith("xeero_")) {
       targetFunction = "paystack-webhook";
     } else {
