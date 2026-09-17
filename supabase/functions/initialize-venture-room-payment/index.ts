@@ -67,19 +67,58 @@ Deno.serve(async (req: Request) => {
       ticketCode = generateTicketCode();
     }
 
-    const { data: registration, error: regError } = await supabaseAdmin
+        // Check for an existing row on this email first, so a returning person
+    // gets their existing record updated instead of creating a duplicate.
+    const { data: existing } = await supabaseAdmin
       .from("venture_room_registrations")
-      .insert({
-        full_name, email, phone: phone || null,
-        startup_name: startup_name || null,
-        role: role || null,
-        profile_id: profile_id || null,
-        ticket_code: ticketCode,
-        amount_ngn: finalAmount,
-        payment_status: "pending",
-      })
-      .select()
-      .single();
+      .select("id, payment_status")
+      .ilike("email", email)
+      .maybeSingle();
+
+    if (existing?.payment_status === "paid") {
+      return new Response(
+        JSON.stringify({ error: "This email has already registered and paid for The Venture Room." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    let registration;
+    let regError;
+
+    if (existing) {
+      const { data, error } = await supabaseAdmin
+        .from("venture_room_registrations")
+        .update({
+          full_name, phone: phone || null,
+          startup_name: startup_name || null,
+          role: role || null,
+          profile_id: profile_id || null,
+          ticket_code: ticketCode,
+          amount_ngn: finalAmount,
+          payment_status: "pending",
+        })
+        .eq("id", existing.id)
+        .select()
+        .single();
+      registration = data;
+      regError = error;
+    } else {
+      const { data, error } = await supabaseAdmin
+        .from("venture_room_registrations")
+        .insert({
+          full_name, email, phone: phone || null,
+          startup_name: startup_name || null,
+          role: role || null,
+          profile_id: profile_id || null,
+          ticket_code: ticketCode,
+          amount_ngn: finalAmount,
+          payment_status: "pending",
+        })
+        .select()
+        .single();
+      registration = data;
+      regError = error;
+    }
 
     if (regError || !registration) {
       console.error("Registration insert failed:", regError);

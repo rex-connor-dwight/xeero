@@ -105,6 +105,19 @@ async function getEmailsForSegment(segment: string, singleEmail?: string): Promi
     return email ? [email] : [];
   }
 
+  // Venture Room registrants are not necessarily Xeero account holders —
+  // their emails live directly on the registrations table, not auth.users.
+  if (segment === "venture_pending") {
+    const { data } = await supabaseAdmin
+      .from("venture_room_registrations")
+      .select("email")
+      .eq("payment_status", "pending");
+
+      const emails = (data || []).map((r: { email: string }) => r.email);
+    console.log(`venture_pending: ${emails.length} unpaid registrations`);
+    return emails;
+  }
+
   const userMap = await buildUserEmailMap();
 
   if (segment === "all" || segment === "live" || segment === "draft") {

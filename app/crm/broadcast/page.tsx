@@ -13,11 +13,12 @@ import {
   FolderOpen,
   ImagePlus,
   X,
+  Ticket,
 } from "lucide-react";
 
 const ADMIN_EMAILS = ["connor@xeero.me"];
 
-type Segment = "all" | "live" | "draft" | "no_deck" | "no_dataroom" | "single";
+type Segment = "all" | "live" | "draft" | "no_deck" | "no_dataroom" | "venture_pending" | "single";
 
 const SEGMENTS = [
   { key: "all" as Segment, label: "All Founders", sub: "Everyone with an account", icon: <Users size={14} /> },
@@ -25,6 +26,7 @@ const SEGMENTS = [
   { key: "draft" as Segment, label: "Draft Profiles", sub: "Haven't gone live yet", icon: <RefreshCw size={14} /> },
   { key: "no_deck" as Segment, label: "No Pitch Deck", sub: "Live but no deck uploaded", icon: <FileText size={14} /> },
   { key: "no_dataroom" as Segment, label: "No Data Room", sub: "No completed documents", icon: <FolderOpen size={14} /> },
+  { key: "venture_pending" as Segment, label: "Venture Room — Pending", sub: "Started but haven't paid", icon: <Ticket size={14} /> },
   { key: "single" as Segment, label: "Single Recipient", sub: "One specific person", icon: <User size={14} /> },
 ];
 
@@ -297,7 +299,6 @@ export default function BroadcastPage() {
                           key={i}
                           style={styles.suggestionItem}
                           onClick={() => {
-                            // Pass user_id — resolved to email in edge function
                             setSingleEmail(s.user_id);
                             setSingleEmailDisplay(`${s.founder_name} — ${s.startup_name}`);
                             setShowSuggestions(false);
