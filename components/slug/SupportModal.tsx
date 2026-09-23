@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Heart, CheckCircle } from "lucide-react";
 
 declare global {
@@ -18,6 +18,13 @@ export default function SupportModal({
   profileId: string;
   onClose: () => void;
 }) {
+  useEffect(() => {
+    if (document.querySelector('script[src="https://js.paystack.co/v1/inline.js"]')) return;
+    const script = document.createElement("script");
+    script.src = "https://js.paystack.co/v1/inline.js";
+    document.head.appendChild(script);
+  }, []);
+
   const [supportName, setSupportName] = useState("");
   const [supportEmail, setSupportEmail] = useState("");
   const [supportAmount, setSupportAmount] = useState<number | null>(null);
@@ -65,6 +72,11 @@ export default function SupportModal({
 
       setSupportLoading(false);
 
+      if (!window.PaystackPop) {
+        setSupportError("Payment is still loading. Please wait a moment and try again.");
+        return;
+      }
+
       const handler = window.PaystackPop.setup({
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
         email: supportEmail,
@@ -92,6 +104,7 @@ export default function SupportModal({
           setSupportLoading(false);
         },
       });
+      handler.openIframe();
 
     } catch {
       setSupportError("Something went wrong. Please try again.");
