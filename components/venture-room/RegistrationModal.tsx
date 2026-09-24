@@ -61,6 +61,16 @@ export default function RegistrationModal({ onClose }: { onClose: () => void }) 
         return;
       }
 
+      // 100%-off coupons skip Paystack entirely on the backend — the ticket
+      // is already marked paid, so just show the success screen directly.
+      if (data.free) {
+        setTicketCode(data.ticket_code);
+        setRegisteredName(fullName);
+        setRegisteredEmail(email);
+        setLoading(false);
+        return;
+      }
+
       const handler = window.PaystackPop.setup({
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
         email,

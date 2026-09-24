@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const supabaseAdmin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
 const corsHeaders = {
@@ -67,7 +68,7 @@ Deno.serve(async (req: Request) => {
       ticketCode = generateTicketCode();
     }
 
-        // Check for an existing row on this email first, so a returning person
+    // Check for an existing row on this email first, so a returning person
     // gets their existing record updated instead of creating a duplicate.
     const { data: existing } = await supabaseAdmin
       .from("venture_room_registrations")
@@ -125,6 +126,64 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: "Failed to create registration" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // A 100%-off coupon brings the price to zero — Paystack rejects zero-amount
+    // charges, so skip the payment gateway entirely and mark this as paid directly.
+    if (finalAmount === 0) {
+      await supabaseAdmin
+        .from("venture_room_registrations")
+        .update({ payment_status: "paid" })
+        .eq("id", registration.id);
+
+      const emailRes = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${RESEND_API_KEY}`,
+        },
+        body: JSON.stringify({
+          from: "The Venture Room <noreply@xeero.me>",
+          to: [email],
+          subject: "Your Venture Room ticket code",
+          html: `
+            <!DOCTYPE html><html><head><meta charset="utf-8"></head>
+            <body style="margin:0;padding:0;background:#F7F4EF;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+              <div style="max-width:480px;margin:40px auto;background:#ffffff;border-radius:20px;overflow:hidden;border:1px solid #30166015;">
+                <div style="background:#301660;padding:32px;text-align:center;">
+                  <p style="margin:0;font-size:13px;font-weight:700;color:#F1A9FA;letter-spacing:0.08em;text-transform:uppercase;">The Venture Room</p>
+                </div>
+                <div style="padding:32px;text-align:center;">
+                  <h1 style="font-size:20px;font-weight:700;color:#301660;margin:0 0 8px 0;">You're in, ${full_name.split(" ")[0]}.</h1>
+                  <p style="font-size:13px;color:#301660;opacity:0.7;line-height:1.7;margin:0 0 24px 0;">
+                    26 September 2026 &middot; Bridge by Obsidian, Yaba, Lagos
+                  </p>
+                  <div style="background:#F1A9FA30;border:1px solid #F1A9FA;border-radius:14px;padding:18px;margin-bottom:24px;">
+                    <p style="font-size:11px;font-weight:700;color:#301660;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 6px 0;">Your Ticket Code</p>
+                    <p style="font-size:22px;font-weight:700;color:#301660;letter-spacing:0.05em;margin:0;">${ticketCode}</p>
+                  </div>
+                  <p style="font-size:12px;color:#301660;opacity:0.6;line-height:1.6;margin:0;">Bring this code with you to check in at the venue.</p>
+                </div>
+              </div>
+            </body></html>
+          `,
+        }),
+      });
+
+      if (!emailRes.ok) {
+        console.error("Failed to send free-ticket confirmation email:", await emailRes.json());
+      }
+
+      return new Response(
+        JSON.stringify({
+          registration_id: registration.id,
+          ticket_code: ticketCode,
+          ngn_amount: 0,
+          applied_coupon: appliedCoupon,
+          free: true,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const reference = `xeero_ventureroom_${registration.id}`;
