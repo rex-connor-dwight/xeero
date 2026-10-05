@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useXeero } from "@/lib/context";
+import { CURRENT_EDITION } from "@/lib/data/ventureRoomEdition";
 import {
   Send,
   Users,
@@ -18,7 +19,16 @@ import {
 
 const ADMIN_EMAILS = ["connor@xeero.me"];
 
-type Segment = "all" | "live" | "draft" | "no_deck" | "no_dataroom" | "venture_pending" | "single";
+type Segment =
+  | "all"
+  | "live"
+  | "draft"
+  | "no_deck"
+  | "no_dataroom"
+  | "venture_pending"
+  | "venture_paid"
+  | "venture_lagos_invite"
+  | "single";
 
 const SEGMENTS = [
   { key: "all" as Segment, label: "All Founders", sub: "Everyone with an account", icon: <Users size={14} /> },
@@ -26,7 +36,9 @@ const SEGMENTS = [
   { key: "draft" as Segment, label: "Draft Profiles", sub: "Haven't gone live yet", icon: <RefreshCw size={14} /> },
   { key: "no_deck" as Segment, label: "No Pitch Deck", sub: "Live but no deck uploaded", icon: <FileText size={14} /> },
   { key: "no_dataroom" as Segment, label: "No Data Room", sub: "No completed documents", icon: <FolderOpen size={14} /> },
-  { key: "venture_pending" as Segment, label: "Venture Room — Pending", sub: "Started but haven't paid", icon: <Ticket size={14} /> },
+  { key: "venture_pending" as Segment, label: `Venture Room ${CURRENT_EDITION.city}: Pending`, sub: "Started but haven't paid", icon: <Ticket size={14} /> },
+  { key: "venture_paid" as Segment, label: `Venture Room ${CURRENT_EDITION.city}: Paid`, sub: "Registered and paid", icon: <Ticket size={14} /> },
+  { key: "venture_lagos_invite" as Segment, label: "Venture Room: Lagos", sub: `Paid for Lagos, not yet in ${CURRENT_EDITION.city}`, icon: <Ticket size={14} /> },
   { key: "single" as Segment, label: "Single Recipient", sub: "One specific person", icon: <User size={14} /> },
 ];
 
@@ -300,7 +312,7 @@ export default function BroadcastPage() {
                           style={styles.suggestionItem}
                           onClick={() => {
                             setSingleEmail(s.user_id);
-                            setSingleEmailDisplay(`${s.founder_name} — ${s.startup_name}`);
+                            setSingleEmailDisplay(`${s.founder_name} · ${s.startup_name}`);
                             setShowSuggestions(false);
                           }}
                         >
@@ -449,7 +461,7 @@ export default function BroadcastPage() {
                     <strong>From:</strong> Connor at Xeero &lt;connor@xeero.me&gt;
                   </p>
                   <p style={styles.previewMetaRow}>
-                    <strong>Subject:</strong> {subject || "—"}
+                    <strong>Subject:</strong> {subject || "-"}
                   </p>
                 </div>
 

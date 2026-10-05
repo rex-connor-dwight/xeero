@@ -3,29 +3,34 @@
 import { useState } from "react";
 import Nav from "@/components/venture-room/Nav";
 import Hero from "@/components/venture-room/Hero";
+import JourneySection from "@/components/venture-room/JourneySection";
 import AboutSection from "@/components/venture-room/AboutSection";
 import WhoItsForSection from "@/components/venture-room/WhoItsForSection";
 import ExperienceSection from "@/components/venture-room/ExperienceSection";
 import HostSection from "@/components/venture-room/HostSection";
-import PastEditionSection from "@/components/venture-room/PastEditionSection";
+import EventDetailsSection from "@/components/venture-room/EventDetailsSection";
+import LagosRecapSection from "@/components/venture-room/LagosRecapSection";
 import SponsorsSection from "@/components/venture-room/SponsorsSection";
 import RegistrationModal from "@/components/venture-room/RegistrationModal";
 import FinalCTA from "@/components/venture-room/FinalCTA";
 
 export default function VentureRoomPage() {
   const [showRegistration, setShowRegistration] = useState(false);
+  const openRegistration = () => setShowRegistration(true);
 
   return (
     <div>
-      <Nav onRegister={() => setShowRegistration(true)} />
-      <Hero onRegister={() => setShowRegistration(true)} />
+      <Nav onRegister={openRegistration} />
+      <Hero onRegister={openRegistration} />
+      <JourneySection onRegister={openRegistration} />
       <AboutSection />
       <WhoItsForSection />
       <ExperienceSection />
       <HostSection />
-      <PastEditionSection />
+      <EventDetailsSection />
+      <LagosRecapSection />
       <SponsorsSection />
-      <FinalCTA onRegister={() => setShowRegistration(true)} />
+      <FinalCTA onRegister={openRegistration} />
 
       {showRegistration && (
         <RegistrationModal onClose={() => setShowRegistration(false)} />

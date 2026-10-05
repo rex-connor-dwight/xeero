@@ -1,11 +1,15 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { CURRENT_EDITION_SLUG } from "../_shared/editions.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const ADMIN_EMAILS = ["connor@xeero.me"];
 const supabaseAdmin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+
+// The previous edition, used for the "invite Lagos attendees to the new city" segment.
+const PAST_EDITION_SLUG = "lagos";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -66,6 +70,21 @@ async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Case-insensitive de-duplication, keeping the first spelling seen.
+function uniqueEmails(rows: { email: string }[] | null): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const r of rows || []) {
+    const clean = (r.email || "").trim();
+    const key = clean.toLowerCase();
+    if (key && !seen.has(key)) {
+      seen.add(key);
+      out.push(clean);
+    }
+  }
+  return out;
+}
+
 // Fetch ALL auth users once via pagination, build a uid -> email map.
 // This replaces per-user Admin API calls, which hit rate limits and
 // silently drop recipients under load.
@@ -105,16 +124,52 @@ async function getEmailsForSegment(segment: string, singleEmail?: string): Promi
     return email ? [email] : [];
   }
 
-  // Venture Room registrants are not necessarily Xeero account holders —
-  // their emails live directly on the registrations table, not auth.users.
+  // Venture Room registrants are not necessarily Xeero account holders.
+  // Their emails live directly on the registrations table, not auth.users.
+
+  // Current edition: started but never paid (the view already hides anyone
+  // who has since paid, and keeps one row per email per edition).
   if (segment === "venture_pending") {
+    const { data } = await supabaseAdmin
+      .from("venture_room_unique_pending")
+      .select("email")
+      .eq("edition", CURRENT_EDITION_SLUG);
+
+    const emails = uniqueEmails(data);
+    console.log(`venture_pending (${CURRENT_EDITION_SLUG}): ${emails.length} unpaid registrations`);
+    return emails;
+  }
+
+  // Current edition: registered and paid.
+  if (segment === "venture_paid") {
     const { data } = await supabaseAdmin
       .from("venture_room_registrations")
       .select("email")
-      .eq("payment_status", "pending");
+      .eq("edition", CURRENT_EDITION_SLUG)
+      .eq("payment_status", "paid");
 
-      const emails = (data || []).map((r: { email: string }) => r.email);
-    console.log(`venture_pending: ${emails.length} unpaid registrations`);
+    const emails = uniqueEmails(data);
+    console.log(`venture_paid (${CURRENT_EDITION_SLUG}): ${emails.length} paid registrations`);
+    return emails;
+  }
+
+  // Past edition registrants who have not yet paid for the current edition.
+  if (segment === "venture_lagos_invite") {
+    const { data: past } = await supabaseAdmin
+      .from("venture_room_registrations")
+      .select("email")
+      .eq("edition", PAST_EDITION_SLUG)
+      .eq("payment_status", "paid");
+
+    const { data: current } = await supabaseAdmin
+      .from("venture_room_registrations")
+      .select("email")
+      .eq("edition", CURRENT_EDITION_SLUG)
+      .eq("payment_status", "paid");
+
+    const alreadyIn = new Set(uniqueEmails(current).map((e) => e.toLowerCase()));
+    const emails = uniqueEmails(past).filter((e) => !alreadyIn.has(e.toLowerCase()));
+    console.log(`venture_lagos_invite: ${emails.length} past-edition registrants not yet in ${CURRENT_EDITION_SLUG}`);
     return emails;
   }
 
@@ -236,7 +291,7 @@ Deno.serve(async (req: Request) => {
     let batches = 0;
 
     // Resend's batch endpoint accepts up to 100 emails per request and handles
-    // delivery pacing internally — this replaces firing many parallel individual
+    // delivery pacing internally. This replaces firing many parallel individual
     // requests, which was tripping Resend's per-second rate limit and silently
     // dropping most of the batch.
     for (let i = 0; i < emails.length; i += BATCH_SIZE) {
@@ -271,7 +326,7 @@ Deno.serve(async (req: Request) => {
             if (r?.id) sent++;
             else failed++;
           });
-          console.log(`Batch ${batches} — Resend accepted ${results.length} of ${batch.length}`);
+          console.log(`Batch ${batches}: Resend accepted ${results.length} of ${batch.length}`);
         }
       } catch (batchErr) {
         console.error(`Batch ${batches} request error:`, batchErr);

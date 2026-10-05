@@ -3,7 +3,7 @@ import { luckiestGuy } from "./fonts";
 
 export const metadata: Metadata = {
   title: "The Venture Room: Founder Space Hosted by Connor",
-  description: "A room for founders to gain clarity, make connections, and move forward. 26 September 2026 · Bridge by Obsidian, Yaba, Lagos.",
+  description: "A room for founders to gain clarity, make connections, and move forward. 24 October 2026 · Matambela Gardens, Wuse 2, Abuja.",
   openGraph: {
     title: "The Venture Room",
     description: "A room for founders to gain clarity, make connections, and move forward.",

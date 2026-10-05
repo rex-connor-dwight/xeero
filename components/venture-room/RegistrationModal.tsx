@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
 import { VR_COLORS, VR_FONTS } from "@/lib/data/ventureRoomTheme";
-import { X, CheckCircle, Copy } from "lucide-react";
+import { CURRENT_EDITION } from "@/lib/data/ventureRoomEdition";
+import { X, CheckCircle } from "lucide-react";
 import ETicket from "@/components/venture-room/ETicket";
 
 declare global {
@@ -22,7 +22,6 @@ export default function RegistrationModal({ onClose }: { onClose: () => void }) 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [ticketCode, setTicketCode] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const [registeredName, setRegisteredName] = useState("");
   const [registeredEmail, setRegisteredEmail] = useState("");
 
@@ -61,7 +60,7 @@ export default function RegistrationModal({ onClose }: { onClose: () => void }) 
         return;
       }
 
-      // 100%-off coupons skip Paystack entirely on the backend — the ticket
+      // 100%-off coupons skip Paystack entirely on the backend. The ticket
       // is already marked paid, so just show the success screen directly.
       if (data.free) {
         setTicketCode(data.ticket_code);
@@ -96,13 +95,6 @@ export default function RegistrationModal({ onClose }: { onClose: () => void }) 
     }
   };
 
-  const handleCopy = () => {
-    if (!ticketCode) return;
-    navigator.clipboard.writeText(ticketCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   return (
     <div style={styles.overlay} onClick={onClose}>
       <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -113,15 +105,17 @@ export default function RegistrationModal({ onClose }: { onClose: () => void }) 
             <div style={styles.successIcon}><CheckCircle size={30} color={VR_COLORS.primary} /></div>
             <h2 style={styles.successTitle}>You're in.</h2>
             <p style={styles.successText}>
-              Save your ticket. Bring it with you on 26 September to check in at Bridge by Obsidian.
+              Save your ticket. Bring it with you on {CURRENT_EDITION.dateLabel} to check in at {CURRENT_EDITION.venue}.
             </p>
             <ETicket fullName={registeredName} email={registeredEmail} ticketCode={ticketCode} />
             <button style={styles.doneBtn} onClick={onClose}>Done</button>
           </div>
         ) : (
           <>
-            <h2 style={styles.title}>Register for The Venture Room</h2>
-            <p style={styles.subtitle}>26 September 2026 · Bridge by Obsidian, Yaba, Lagos</p>
+            <h2 style={styles.title}>Register for The Venture Room {CURRENT_EDITION.city}</h2>
+            <p style={styles.subtitle}>
+              {CURRENT_EDITION.dateLabel} · {CURRENT_EDITION.fullVenue}
+            </p>
 
             <label style={styles.label}>Full name</label>
             <input style={styles.input} value={fullName} onChange={(e) => setFullName(e.target.value)} />
@@ -172,8 +166,5 @@ const styles: Styles = {
   successIcon: { width: "56px", height: "56px", borderRadius: "16px", backgroundColor: VR_COLORS.accent + "40", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px auto" },
   successTitle: { fontFamily: VR_FONTS.display, fontSize: "24px", color: VR_COLORS.primary, margin: "0 0 10px 0" },
   successText: { fontFamily: VR_FONTS.body, fontSize: "13px", color: VR_COLORS.primary, opacity: 0.75, lineHeight: "1.6", margin: "0 0 24px 0" },
-  codeBox: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", backgroundColor: VR_COLORS.accent + "25", border: `1px solid ${VR_COLORS.accent}`, borderRadius: "12px", marginBottom: "20px" },
-  codeText: { fontFamily: VR_FONTS.display, fontSize: "18px", color: VR_COLORS.primary, letterSpacing: "0.05em" },
-  copyBtn: { display: "flex", alignItems: "center", gap: "5px", padding: "7px 12px", fontFamily: VR_FONTS.body, fontSize: "12px", fontWeight: 700, color: VR_COLORS.primary, backgroundColor: VR_COLORS.white, border: `1px solid ${VR_COLORS.primary}30`, borderRadius: "8px", cursor: "pointer" },
   doneBtn: { width: "100%", padding: "13px", fontFamily: VR_FONTS.body, fontSize: "13px", fontWeight: 700, color: VR_COLORS.white, backgroundColor: VR_COLORS.primary, border: "none", borderRadius: "10px", cursor: "pointer" },
 };

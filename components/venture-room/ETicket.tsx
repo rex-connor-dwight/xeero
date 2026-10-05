@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { VR_COLORS, VR_FONTS } from "@/lib/data/ventureRoomTheme";
+import { CURRENT_EDITION } from "@/lib/data/ventureRoomEdition";
 import { Download } from "lucide-react";
 
 export default function ETicket({
@@ -26,7 +27,7 @@ export default function ETicket({
     });
 
     const link = document.createElement("a");
-    link.download = `venture-room-ticket-${ticketCode}.png`;
+    link.download = `venture-room-${CURRENT_EDITION.slug}-ticket-${ticketCode}.png`;
     link.href = canvas.toDataURL("image/png");
     link.click();
   };
@@ -36,7 +37,11 @@ export default function ETicket({
       <div ref={ticketRef} style={styles.ticket}>
         <div style={styles.ticketTop}>
           <p style={styles.ticketBrand}>THE VENTURE ROOM</p>
-          <p style={styles.ticketEvent}>26 September 2026 · Bridge by Obsidian, Yaba, Lagos</p>
+          <p style={styles.ticketCity}>{CURRENT_EDITION.city.toUpperCase()}</p>
+          <p style={styles.ticketEvent}>
+            {CURRENT_EDITION.dateLabel} · {CURRENT_EDITION.timeLabel}
+          </p>
+          <p style={styles.ticketEvent}>{CURRENT_EDITION.fullVenue}</p>
         </div>
 
         <div style={styles.divider}>
@@ -81,15 +86,23 @@ const styles: Styles = {
     fontFamily: VR_FONTS.display,
     fontSize: "18px",
     color: VR_COLORS.white,
-    margin: "0 0 6px 0",
+    margin: "0 0 2px 0",
     letterSpacing: "0.02em",
+  },
+  ticketCity: {
+    fontFamily: VR_FONTS.display,
+    fontSize: "26px",
+    color: VR_COLORS.accent,
+    margin: "0 0 10px 0",
+    letterSpacing: "0.04em",
   },
   ticketEvent: {
     fontFamily: VR_FONTS.body,
     fontSize: "11px",
     fontWeight: 500,
-    color: VR_COLORS.accent,
-    margin: "0",
+    color: VR_COLORS.white,
+    opacity: 0.85,
+    margin: "0 0 2px 0",
   },
   divider: {
     position: "relative",

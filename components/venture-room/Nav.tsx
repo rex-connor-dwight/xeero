@@ -4,11 +4,12 @@ import { useState } from "react";
 import { VR_COLORS, VR_FONTS } from "@/lib/data/ventureRoomTheme";
 
 const NAV_ITEMS = [
+  { label: "Journey", id: "journey" },
   { label: "About", id: "about" },
   { label: "Who It's For", id: "who-its-for" },
   { label: "The Experience", id: "experience" },
-  { label: "Past Edition", id: "past-edition" },
   { label: "The Host", id: "host" },
+  { label: "Lagos Recap", id: "past-edition" },
   { label: "Partners", id: "sponsors" },
 ];
 

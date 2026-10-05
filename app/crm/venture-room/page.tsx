@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useXeero } from "@/lib/context";
+import { CURRENT_EDITION } from "@/lib/data/ventureRoomEdition";
 import { Ticket, Search, CheckCircle, Clock, DollarSign, ScanLine } from "lucide-react";
 import CheckinModal from "@/components/venture-room/CheckinModal";
 
@@ -19,7 +20,10 @@ type Registration = {
   checked_in: boolean;
   checked_in_at: string | null;
   created_at: string;
+  edition: string;
 };
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 function timeAgo(dateString: string) {
   const diff = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
@@ -34,6 +38,7 @@ export default function CrmVentureRoomPage() {
   const [dataLoading, setDataLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "paid" | "pending" | "checked_in">("all");
+  const [edition, setEdition] = useState<string>(CURRENT_EDITION.slug);
   const [showCheckin, setShowCheckin] = useState(false);
 
   const fetchRegistrations = () => {
@@ -55,14 +60,18 @@ export default function CrmVentureRoomPage() {
     return <div style={styles.loadingPage}><div style={styles.loadingDot} /></div>;
   }
 
-  const paidCount = registrations.filter((r) => r.payment_status === "paid").length;
-  const pendingCount = registrations.filter((r) => r.payment_status === "pending").length;
-  const checkedInCount = registrations.filter((r) => r.checked_in).length;
-  const totalRevenue = registrations
+  // Current edition first, then any past editions that have registrations.
+  const editions = Array.from(new Set([CURRENT_EDITION.slug, ...registrations.map((r) => r.edition)]));
+  const editionRegs = registrations.filter((r) => r.edition === edition);
+
+  const paidCount = editionRegs.filter((r) => r.payment_status === "paid").length;
+  const pendingCount = editionRegs.filter((r) => r.payment_status === "pending").length;
+  const checkedInCount = editionRegs.filter((r) => r.checked_in).length;
+  const totalRevenue = editionRegs
     .filter((r) => r.payment_status === "paid")
     .reduce((sum, r) => sum + Number(r.amount_ngn), 0);
 
-  const filtered = registrations.filter((r) => {
+  const filtered = editionRegs.filter((r) => {
     const matchesFilter =
       filter === "all" ||
       (filter === "paid" && r.payment_status === "paid") ||
@@ -82,20 +91,36 @@ export default function CrmVentureRoomPage() {
     <div style={styles.page}>
 
       {showCheckin && (
-        <CheckinModal onClose={() => setShowCheckin(false)} onCheckedIn={fetchRegistrations} />
+        <CheckinModal
+          edition={edition}
+          onClose={() => setShowCheckin(false)}
+          onCheckedIn={fetchRegistrations}
+        />
       )}
 
       <div style={styles.header}>
         <div style={styles.headerLeft}>
           <div style={styles.headerIcon}><Ticket size={18} color="#111111" /></div>
           <div>
-            <h1 style={styles.headerTitle}>The Venture Room</h1>
-            <p style={styles.headerSub}>{registrations.length} registration{registrations.length !== 1 ? "s" : ""}</p>
+            <h1 style={styles.headerTitle}>The Venture Room {cap(edition)}</h1>
+            <p style={styles.headerSub}>{editionRegs.length} registration{editionRegs.length !== 1 ? "s" : ""}</p>
           </div>
         </div>
         <button style={styles.checkinBtn} onClick={() => setShowCheckin(true)}>
           <ScanLine size={14} />Check-In
         </button>
+      </div>
+
+      <div style={styles.editionRow}>
+        {editions.map((e) => (
+          <button
+            key={e}
+            style={{ ...styles.filterChip, ...(edition === e ? styles.filterChipActive : {}) }}
+            onClick={() => { setEdition(e); setFilter("all"); setSearch(""); }}
+          >
+            {cap(e)} ({registrations.filter((r) => r.edition === e).length})
+          </button>
+        ))}
       </div>
 
       <div style={styles.statsRow}>
@@ -184,12 +209,13 @@ const styles: Styles = {
   page: { padding: "32px", maxWidth: "900px" },
   loadingPage: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" },
   loadingDot: { width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#cccccc" },
-  header: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px", gap: "14px", flexWrap: "wrap" },
+  header: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px", gap: "14px", flexWrap: "wrap" },
   headerLeft: { display: "flex", alignItems: "center", gap: "14px" },
   headerIcon: { width: "44px", height: "44px", borderRadius: "12px", backgroundColor: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
   headerTitle: { fontSize: "20px", fontWeight: "700", color: "#111111", margin: "0 0 2px 0" },
   headerSub: { fontSize: "13px", color: "#888888", margin: "0" },
   checkinBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "10px 18px", fontSize: "13px", fontWeight: "600", color: "#ffffff", backgroundColor: "#111111", border: "none", borderRadius: "8px", cursor: "pointer" },
+  editionRow: { display: "flex", gap: "6px", marginBottom: "20px", flexWrap: "wrap" },
   statsRow: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "24px" },
   statCard: { backgroundColor: "#ffffff", borderRadius: "12px", padding: "16px", border: "1px solid #f0f0f0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", gap: "6px" },
   statValue: { fontSize: "18px", fontWeight: "700", color: "#111111" },

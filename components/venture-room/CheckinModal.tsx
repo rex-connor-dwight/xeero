@@ -4,17 +4,30 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { CheckCircle, XCircle, Search, RotateCcw, X } from "lucide-react";
 
-type Result = {
-  status: "valid" | "already_checked_in" | "unpaid" | "not_found";
-  registration?: {
-    full_name: string;
-    email: string;
-    startup_name: string | null;
-    checked_in_at: string | null;
-  };
+type RegInfo = {
+  full_name: string;
+  email: string;
+  startup_name: string | null;
+  checked_in_at: string | null;
+  edition?: string;
 };
 
-export default function CheckinModal({ onClose, onCheckedIn }: { onClose: () => void; onCheckedIn: () => void }) {
+type Result = {
+  status: "valid" | "already_checked_in" | "unpaid" | "wrong_edition" | "not_found";
+  registration?: RegInfo;
+};
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+export default function CheckinModal({
+  edition,
+  onClose,
+  onCheckedIn,
+}: {
+  edition: string;
+  onClose: () => void;
+  onCheckedIn: () => void;
+}) {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
@@ -28,12 +41,16 @@ export default function CheckinModal({ onClose, onCheckedIn }: { onClose: () => 
 
     const { data } = await supabase
       .from("venture_room_registrations")
-      .select("full_name, email, startup_name, payment_status, checked_in, checked_in_at")
+      .select("full_name, email, startup_name, payment_status, checked_in, checked_in_at, edition")
       .eq("ticket_code", trimmed)
       .maybeSingle();
 
     if (!data) {
       setResult({ status: "not_found" });
+    } else if (data.edition !== edition) {
+      // Ticket codes are unique across editions, so a valid code can still
+      // belong to a different city. Never check it in here.
+      setResult({ status: "wrong_edition", registration: data });
     } else if (data.payment_status !== "paid") {
       setResult({ status: "unpaid", registration: data });
     } else if (data.checked_in) {
@@ -50,7 +67,8 @@ export default function CheckinModal({ onClose, onCheckedIn }: { onClose: () => 
     await supabase
       .from("venture_room_registrations")
       .update({ checked_in: true, checked_in_at: new Date().toISOString() })
-      .eq("ticket_code", code.trim().toUpperCase());
+      .eq("ticket_code", code.trim().toUpperCase())
+      .eq("edition", edition);
     setConfirming(false);
     setResult({
       status: "already_checked_in",
@@ -69,7 +87,7 @@ export default function CheckinModal({ onClose, onCheckedIn }: { onClose: () => 
       <div style={styles.card} onClick={(e) => e.stopPropagation()}>
         <button style={styles.closeBtn} onClick={onClose}><X size={16} color="#888888" /></button>
 
-        <h1 style={styles.title}>Check-In</h1>
+        <h1 style={styles.title}>Check-In: {cap(edition)}</h1>
 
         <div style={styles.inputRow}>
           <input
@@ -97,12 +115,23 @@ export default function CheckinModal({ onClose, onCheckedIn }: { onClose: () => 
               </>
             )}
 
+            {result.status === "wrong_edition" && (
+              <>
+                <XCircle size={40} color="#e53e3e" />
+                <p style={styles.resultTitle}>Wrong edition</p>
+                <p style={styles.resultText}>
+                  {result.registration?.full_name}'s ticket is for {cap(result.registration?.edition || "another edition")}.
+                </p>
+                <p style={styles.resultSub}>This is the {cap(edition)} check-in.</p>
+              </>
+            )}
+
             {result.status === "unpaid" && (
               <>
                 <XCircle size={40} color="#d69e2e" />
                 <p style={styles.resultTitle}>Payment not confirmed</p>
                 <p style={styles.resultText}>
-                  {result.registration?.full_name} — this ticket hasn't been paid for.
+                  {result.registration?.full_name}: this ticket hasn't been paid for.
                 </p>
               </>
             )}

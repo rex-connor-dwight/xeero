@@ -1,6 +1,7 @@
 "use client";
 
 import { VR_COLORS, VR_FONTS } from "@/lib/data/ventureRoomTheme";
+import { CURRENT_EDITION } from "@/lib/data/ventureRoomEdition";
 
 export default function Hero({ onRegister }: { onRegister: () => void }) {
   const handleLearnMore = () => {
@@ -30,9 +31,9 @@ export default function Hero({ onRegister }: { onRegister: () => void }) {
         </h1>
 
         <div style={styles.eventInfo}>
-          <p style={styles.eventDate}>26TH SEP</p>
-          <p style={styles.eventTime}>11:00am WAT</p>
-          <p style={styles.eventVenue}>LAGOS</p>
+          <p style={styles.eventDate}>{CURRENT_EDITION.heroDate}</p>
+          <p style={styles.eventTime}>{CURRENT_EDITION.timeShort}</p>
+          <p style={styles.eventVenue}>{CURRENT_EDITION.heroCity}</p>
         </div>
       </div>
 
