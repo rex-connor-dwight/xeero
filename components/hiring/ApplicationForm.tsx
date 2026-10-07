@@ -42,6 +42,7 @@ function UploadOrLinkField({
   error: string;
 }) {
   const [choice, setChoice] = useState<"upload" | "link">(mode === "link" ? "link" : "upload");
+  const [sizeError, setSizeError] = useState("");
   const showUpload = mode === "upload" || (mode === "upload_or_link" && choice === "upload");
   const showLink = mode === "link" || (mode === "upload_or_link" && choice === "link");
 
@@ -51,10 +52,14 @@ function UploadOrLinkField({
     if (file.size > MAX_FILE_SIZE_BYTES) {
       onFileChange(null);
       e.target.value = "";
+      setSizeError("That file is larger than 5MB. Please choose a smaller file, or share a link instead.");
       return;
     }
+    setSizeError("");
     onFileChange(file);
   };
+
+  const shownError = error || sizeError;
 
   return (
     <div style={styles.fieldBlock}>
@@ -106,10 +111,10 @@ function UploadOrLinkField({
         </div>
       )}
 
-      {error && (
+      {shownError && (
         <div style={styles.errorBox}>
           <AlertCircle size={13} color="#d69e2e" />
-          <span style={styles.errorBoxText}>{error}</span>
+          <span style={styles.errorBoxText}>{shownError}</span>
         </div>
       )}
     </div>
@@ -180,9 +185,16 @@ export default function ApplicationForm({
       });
       const metCutoff = score >= cutoffScore;
 
-      const { data: application, error: appError } = await supabase
+      // The id is created here instead of read back from the database.
+      // Applicants are usually logged out and have no SELECT permission on
+      // hiring_applications, so asking Supabase to return the new row
+      // (.select()) would be rejected for them.
+      const applicationId = crypto.randomUUID();
+
+      const { error: appError } = await supabase
         .from("hiring_applications")
         .insert({
+          id: applicationId,
           role_id: roleId,
           applicant_name: name,
           applicant_email: email,
@@ -196,26 +208,26 @@ export default function ApplicationForm({
           twitter_url: twitterUrl || null,
           score,
           met_cutoff: metCutoff,
-        })
-        .select()
-        .single();
+        });
 
-        if (appError || !application) {
-          if (appError?.message?.includes("Too many")) {
-            setError(appError.message);
-          } else {
-            setError("Something went wrong. Please try again.");
-          }
-          setSubmitting(false);
-          return;
+      if (appError) {
+        console.error("Application insert failed:", appError);
+        if (appError.message?.includes("Too many")) {
+          setError(appError.message);
+        } else {
+          setError("Something went wrong. Please try again.");
         }
+        setSubmitting(false);
+        return;
+      }
 
       const answerRows = questions
         .filter((q) => answers[q.id])
-        .map((q) => ({ application_id: application.id, question_id: q.id, answer_text: answers[q.id] }));
+        .map((q) => ({ application_id: applicationId, question_id: q.id, answer_text: answers[q.id] }));
 
       if (answerRows.length > 0) {
-        await supabase.from("hiring_application_answers").insert(answerRows);
+        const { error: answersError } = await supabase.from("hiring_application_answers").insert(answerRows);
+        if (answersError) console.error("Answers insert failed:", answersError);
       }
 
       fetch(
@@ -223,12 +235,13 @@ export default function ApplicationForm({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ application_id: application.id, event: "new_application" }),
+          body: JSON.stringify({ application_id: applicationId, event: "new_application" }),
         }
       ).catch(() => {});
 
       setSubmitted(true);
     } catch (err) {
+      console.error("Application submit failed:", err);
       setError("Something went wrong. Please try again.");
     }
     setSubmitting(false);
